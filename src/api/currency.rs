@@ -28,6 +28,24 @@ impl Currency {
 
         Ok(Self(value))
     }
+
+    pub fn add(&mut self, other: Self) -> Result<(), CurrencyError> {
+        self.0 = self
+            .0
+            .checked_add(other.0)
+            .ok_or_else(|| CurrencyError::AddingOtherOutOfRange)?;
+
+        Ok(())
+    }
+
+    pub fn substract(&mut self, other: Self) -> Result<(), CurrencyError> {
+        self.0 = self
+            .0
+            .checked_sub(other.0)
+            .ok_or_else(|| CurrencyError::SubstractingOtherNegative)?;
+
+        Ok(())
+    }
 }
 
 impl TryFrom<&str> for Currency {
@@ -88,6 +106,40 @@ mod tests {
     fn incorrect_fractional_out_of_range() -> Result<(), ()> {
         match Currency::new(0, PRECISION) {
             Err(CurrencyError::FractionalOutOfRange(_)) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn correct_add() {
+        let mut first = Currency::new(1, 1).unwrap();
+        let second = Currency::new(2, 2).unwrap();
+        assert!(first.add(second).is_ok());
+    }
+
+    #[test]
+    fn incorrect_add_overflow() -> Result<(), ()> {
+        let mut first = Currency::new(u64::MAX / PRECISION - 1, 0).unwrap();
+        let second = Currency::new(u64::MAX / PRECISION - 1, 0).unwrap();
+        match first.add(second) {
+            Err(CurrencyError::AddingOtherOutOfRange) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn correct_substract() {
+        let mut first = Currency::new(1, 1).unwrap();
+        let second = Currency::new(1, 1).unwrap();
+        assert!(first.substract(second).is_ok());
+    }
+
+    #[test]
+    fn incorrect_substract_underflow() -> Result<(), ()> {
+        let mut first = Currency::new(1, 1).unwrap();
+        let second = Currency::new(2, 2).unwrap();
+        match first.substract(second) {
+            Err(CurrencyError::SubstractingOtherNegative) => Ok(()),
             _ => Err(()),
         }
     }

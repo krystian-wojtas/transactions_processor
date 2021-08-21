@@ -5,6 +5,9 @@ use std::error;
 use std::fmt;
 use std::num::ParseIntError;
 
+// Crate paths
+use crate::api::currency::Currency;
+
 #[derive(Debug, PartialEq)]
 pub enum CurrencyError {
     CannotGetDecimalPart,
@@ -14,6 +17,8 @@ pub enum CurrencyError {
     DecimalMultipliedByPrecisionOutOfRange(u64),
     DecimalAddedFractionalOutOfRange(u64, u64),
     FractionalOutOfRange(u64),
+    AddingOtherOutOfRange,
+    SubstractingOtherNegative,
 }
 
 // Add empty Error trait
@@ -42,6 +47,12 @@ fn desc(amount_error: &CurrencyError) -> String {
             "cannot represent amount fractional: {} is out of supported range",
             fractional
         ),
+        AddingOtherOutOfRange => {
+            format!("cannot add other value as it would be out of supported range",)
+        }
+        SubstractingOtherNegative => {
+            format!("cannot substract other value as it would be negative",)
+        }
     }
 }
 
