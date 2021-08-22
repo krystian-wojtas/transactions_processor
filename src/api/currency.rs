@@ -7,7 +7,8 @@ use crate::api::currency::error::CurrencyError;
 // Crate modules
 pub mod error;
 
-const PRECISION: u64 = 10000;
+const PRECISION: usize = 4;
+const BASE: u64 = 10_u64.pow(PRECISION as u32);
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Currency(u64);
@@ -15,12 +16,12 @@ pub struct Currency(u64);
 // TODO generic types for decimal and fractional
 impl Currency {
     pub fn new(decimal: u64, fractional: u64) -> Result<Self, CurrencyError> {
-        if fractional >= PRECISION {
+        if fractional >= BASE {
             return Err(CurrencyError::FractionalOutOfRange(fractional));
         }
 
         let value = decimal
-            .checked_mul(PRECISION)
+            .checked_mul(BASE)
             .ok_or_else(|| CurrencyError::DecimalMultipliedByPrecisionOutOfRange(decimal))?;
 
         let value = value
@@ -33,7 +34,7 @@ impl Currency {
     pub fn max() -> Self {
         // Go through checks in new to never bypass them
         // Should never panic unless logic is buggy
-        Self::new(u64::MAX / PRECISION, u64::MAX % PRECISION).unwrap()
+        Self::new(u64::MAX / BASE, u64::MAX % BASE).unwrap()
     }
 
     pub fn add(&mut self, other: Self) -> Result<(), CurrencyError> {
@@ -70,6 +71,10 @@ impl TryFrom<&str> for Currency {
             .map_err(|err| CurrencyError::CannotParseDecimalPart(err))?;
 
         let fractional = parts.next().unwrap_or("0");
+        if fractional.len() > PRECISION {
+            return Err(CurrencyError::FractionalTooLong(fractional.to_string()));
+        }
+        let fractional = String::from(fractional) + &"0".repeat(PRECISION - fractional.len());
         let fractional = fractional
             .parse::<u64>()
             .map_err(|err| CurrencyError::CannotParseFractionalPart(err))?;
@@ -80,8 +85,8 @@ impl TryFrom<&str> for Currency {
 
 impl fmt::Display for Currency {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let decimal = self.0 / PRECISION;
-        let fractional = self.0 % PRECISION;
+        let decimal = self.0 / BASE;
+        let fractional = self.0 % BASE;
 
         write!(f, "{}.{}", decimal, fractional)
     }
@@ -99,7 +104,7 @@ mod tests {
 
     #[test]
     fn correct_max_decimal_min_fractional() {
-        assert!(Currency::new(u64::MAX / PRECISION, 0).is_ok());
+        assert!(Currency::new(u64::MAX / BASE, 0).is_ok());
     }
 
     #[test]
@@ -110,7 +115,7 @@ mod tests {
 
     #[test]
     fn incorrect_fractional_out_of_range() -> Result<(), ()> {
-        match Currency::new(0, PRECISION) {
+        match Currency::new(0, BASE) {
             Err(CurrencyError::FractionalOutOfRange(_)) => Ok(()),
             _ => Err(()),
         }
@@ -179,8 +184,30 @@ mod tests {
     }
 
     #[test]
+    fn ok_to_parse_long_fractional() {
+        let amount = String::from("0.") + &"1".repeat(PRECISION);
+        assert!(Currency::try_from(amount.as_str()).is_ok());
+    }
+
+    #[test]
+    fn cannot_parse_too_long_fractional() -> Result<(), ()> {
+        let amount = String::from("0.") + &"1".repeat(PRECISION + 1);
+        match Currency::try_from(amount.as_str()) {
+            Err(CurrencyError::FractionalTooLong(_)) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn compare_parsed_fractional_part() {
+        let expected = Currency::new(0, BASE / 10).unwrap();
+        let parsed = Currency::try_from("0.1").unwrap();
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
     fn cannot_parse_words() -> Result<(), ()> {
-        match Currency::try_from("not a number") {
+        match Currency::try_from("Not a Number") {
             Err(CurrencyError::CannotParseDecimalPart(_)) => Ok(()),
             _ => Err(()),
         }
@@ -188,7 +215,7 @@ mod tests {
 
     #[test]
     fn cannot_parse_words_in_fraction_part() -> Result<(), ()> {
-        match Currency::try_from("0.NotANumber") {
+        match Currency::try_from("0.NaN") {
             Err(CurrencyError::CannotParseFractionalPart(_)) => Ok(()),
             _ => Err(()),
         }

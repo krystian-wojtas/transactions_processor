@@ -10,6 +10,7 @@ pub enum CurrencyError {
     CannotGetDecimalPart,
     CannotParseDecimalPart(ParseIntError),
     CannotParseFractionalPart(ParseIntError),
+    FractionalTooLong(String),
     DecimalMultipliedByPrecisionOutOfRange(u64),
     DecimalAddedFractionalOutOfRange(u64, u64),
     FractionalOutOfRange(u64),
@@ -28,6 +29,10 @@ fn desc(amount_error: &CurrencyError) -> String {
         CannotParseFractionalPart(ref err) => {
             format!("cannot parse fractional part of amount: {}", err)
         }
+        FractionalTooLong(ref fractional) => format!(
+            "cannot parse fractional parst of amount as it is too long: {}",
+            fractional
+        ),
         DecimalMultipliedByPrecisionOutOfRange(decimal) => format!(
             "cannot represent amount as value: {} is out of supported range",
             decimal
