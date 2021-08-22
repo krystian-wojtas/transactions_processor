@@ -7,7 +7,7 @@ use self::error::EngineError;
 use crate::api::currency::Currency;
 
 // Crate modules
-mod account;
+pub mod account;
 pub mod error;
 
 pub struct Engine {
@@ -55,6 +55,10 @@ impl Engine {
                 .map_err(|err| EngineError::CannotWithdrawal(client, tx, amount, err)),
             None => Err(EngineError::AccountDoesNotExist(client)),
         }
+    }
+
+    pub fn iter(&self) -> std::collections::hash_map::Iter<u16, Account> {
+        self.accounts.iter()
     }
 }
 
