@@ -69,9 +69,7 @@ impl TryFrom<&str> for Currency {
             .parse::<u64>()
             .map_err(|err| CurrencyError::CannotParseDecimalPart(err))?;
 
-        let fractional = parts
-            .next()
-            .ok_or_else(|| CurrencyError::CannotGetFractionalPart)?;
+        let fractional = parts.next().unwrap_or("0");
         let fractional = fractional
             .parse::<u64>()
             .map_err(|err| CurrencyError::CannotParseFractionalPart(err))?;
@@ -176,11 +174,8 @@ mod tests {
     }
 
     #[test]
-    fn cannot_parse_fractional_part_when_not_provided() {
-        assert_eq!(
-            Currency::try_from("0").unwrap_err(),
-            CurrencyError::CannotGetFractionalPart
-        );
+    fn ok_to_parse_without_fractional_part() {
+        assert!(Currency::try_from("0").is_ok());
     }
 
     #[test]
