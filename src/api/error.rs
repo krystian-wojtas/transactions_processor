@@ -6,6 +6,7 @@ use std::fmt;
 
 // Crate paths
 use crate::api::currency::error::CurrencyError;
+use crate::api::engine::error::EngineError;
 
 #[derive(Debug)]
 pub enum TransactionsProcessorError {
@@ -14,6 +15,10 @@ pub enum TransactionsProcessorError {
     CannotReadInputFileRecord(String, csv::Error),
     CannotDeserializeRecord(String, csv::Error),
     CannotBuildCurrencyValue(CurrencyError),
+    MissedMandatoryAmountInInputRecordDeposit,
+    MissedMandatoryAmountInInputRecordWithdrawal,
+    CannotParseMandatoryInputAmountInInputRecordDeposit(String, CurrencyError),
+    NestedEngineError(EngineError),
 }
 
 // Add empty Error trait
@@ -40,6 +45,17 @@ fn desc(amount_error: &TransactionsProcessorError) -> String {
         CannotBuildCurrencyValue(ref err) => {
             format!("cannot build currency value, reason: {}", err)
         }
+        MissedMandatoryAmountInInputRecordDeposit => {
+            "input file misses mandatory amount value for deposit operation".to_string()
+        }
+        MissedMandatoryAmountInInputRecordWithdrawal => {
+            "input file misses mandatory amount value for withdrawal operation".to_string()
+        }
+        CannotParseMandatoryInputAmountInInputRecordDeposit(ref amount, ref err) => format!(
+            "cannot parse input amount for deposit: {}, reason: {}",
+            amount, err
+        ),
+        NestedEngineError(ref err) => format!("enginge gives error: {}", err),
     }
 }
 
@@ -50,8 +66,8 @@ impl fmt::Display for TransactionsProcessorError {
     }
 }
 
-impl From<CurrencyError> for TransactionsProcessorError {
-    fn from(err: CurrencyError) -> TransactionsProcessorError {
-        TransactionsProcessorError::CannotBuildCurrencyValue(err)
+impl From<EngineError> for TransactionsProcessorError {
+    fn from(err: EngineError) -> TransactionsProcessorError {
+        TransactionsProcessorError::NestedEngineError(err)
     }
 }

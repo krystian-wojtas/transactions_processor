@@ -7,11 +7,12 @@ use crate::api::currency::error::CurrencyError;
 // Crate modules
 pub mod error;
 
-const PRECISION: u64 = 10000;
+pub const PRECISION: u64 = 10000;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Currency(u64);
 
+// TODO generic types for decimal and fractional
 impl Currency {
     pub fn new(decimal: u64, fractional: u64) -> Result<Self, CurrencyError> {
         if fractional >= PRECISION {
