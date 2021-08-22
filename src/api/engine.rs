@@ -41,6 +41,21 @@ impl Engine {
 
         Ok(())
     }
+
+    pub fn withdrawal(
+        &mut self,
+        client: u16,
+        tx: u32,
+        amount: Currency,
+    ) -> Result<(), EngineError> {
+        match self.accounts.get_mut(&client) {
+            Some(account) => account
+                .available
+                .substract(amount)
+                .map_err(|err| EngineError::CannotWithdrawal(client, tx, amount, err)),
+            None => Err(EngineError::AccountDoesNotExist(client)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -78,4 +93,47 @@ mod tests {
         }
     }
 
+    #[test]
+    fn incorrect_withdrawal_from_unexisting_account() -> Result<(), ()> {
+        let mut engine = Engine::new();
+        let amount = Currency::new(1, 1).unwrap();
+        match engine.withdrawal(1, 1, amount) {
+            Err(EngineError::AccountDoesNotExist(_)) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn correct_withdrawal_from_deposited_account() {
+        let mut engine = Engine::new();
+        let amount = Currency::new(1, 1).unwrap();
+        assert!(engine.deposit(1, 1, amount).is_ok());
+        assert!(engine.withdrawal(1, 1, amount).is_ok());
+    }
+
+    #[test]
+    fn correct_withdrawal_less_then_deposited() {
+        let mut engine = Engine::new();
+        let amount_more = Currency::new(2, 2).unwrap();
+        let amount_less = Currency::new(1, 1).unwrap();
+        assert!(engine.deposit(1, 1, amount_more).is_ok());
+        assert!(engine.withdrawal(1, 1, amount_less).is_ok());
+    }
+
+    #[test]
+    fn incorrect_withdrawal_more_then_deposited() -> Result<(), ()> {
+        let mut engine = Engine::new();
+        let amount_less = Currency::new(1, 1).unwrap();
+        let amount_more = Currency::new(2, 2).unwrap();
+        assert!(engine.deposit(1, 1, amount_less).is_ok());
+        match engine.withdrawal(1, 1, amount_more) {
+            Err(EngineError::CannotWithdrawal(
+                _,
+                _,
+                _,
+                CurrencyError::SubstractingOtherNegative,
+            )) => Ok(()),
+            _ => Err(()),
+        }
+    }
 }

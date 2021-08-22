@@ -18,6 +18,7 @@ pub enum TransactionsProcessorError {
     MissedMandatoryAmountInInputRecordDeposit,
     MissedMandatoryAmountInInputRecordWithdrawal,
     CannotParseMandatoryInputAmountInInputRecordDeposit(String, CurrencyError),
+    CannotParseMandatoryInputAmountInInputRecordWithdrawal(String, CurrencyError),
     NestedEngineError(EngineError),
 }
 
@@ -53,6 +54,10 @@ fn desc(amount_error: &TransactionsProcessorError) -> String {
         }
         CannotParseMandatoryInputAmountInInputRecordDeposit(ref amount, ref err) => format!(
             "cannot parse input amount for deposit: {}, reason: {}",
+            amount, err
+        ),
+        CannotParseMandatoryInputAmountInInputRecordWithdrawal(ref amount, ref err) => format!(
+            "cannot parse input amount for withdrawal: {}, reason: {}",
             amount, err
         ),
         NestedEngineError(ref err) => format!("enginge gives error: {}", err),

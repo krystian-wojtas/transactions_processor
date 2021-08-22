@@ -33,6 +33,23 @@ fn dispatch(
 
             Ok(())
         }
+        Type::Withdrawal => {
+            // Ensure required field is provided
+            let amount = transaction.amount.ok_or_else(|| {
+                TransactionsProcessorError::MissedMandatoryAmountInInputRecordWithdrawal
+            })?;
+            // Parse input string into Currency type
+            let amount = Currency::try_from(amount).map_err(|err| {
+                TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecordWithdrawal(
+                    amount.to_string(),
+                    err,
+                )
+            })?;
+
+            engine.withdrawal(transaction.client, transaction.tx, amount)?;
+
+            Ok(())
+        }
         _ => unimplemented!(),
     }
 }
