@@ -5,9 +5,6 @@ use std::error;
 use std::fmt;
 use std::num::ParseIntError;
 
-// Crate paths
-use crate::api::currency::Currency;
-
 #[derive(Debug, PartialEq)]
 pub enum CurrencyError {
     CannotGetDecimalPart,
