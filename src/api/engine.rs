@@ -63,7 +63,6 @@ mod tests {
 
     use super::*;
     use crate::api::currency::error::CurrencyError;
-    use crate::api::currency::PRECISION;
 
     #[test]
     fn correct_deposit() {
@@ -83,7 +82,7 @@ mod tests {
     #[test]
     fn incorrect_2_deposits_for_one_account_out_of_range() -> Result<(), ()> {
         let mut engine = Engine::new();
-        let amount = Currency::new(u64::MAX / PRECISION, 0).unwrap();
+        let amount = Currency::max();
         assert!(engine.deposit(1, 1, amount).is_ok());
         match engine.deposit(1, 1, amount) {
             Err(EngineError::CannotDeposit(_, _, _, CurrencyError::AddingOtherOutOfRange)) => {

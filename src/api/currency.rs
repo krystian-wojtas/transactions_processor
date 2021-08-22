@@ -7,7 +7,7 @@ use crate::api::currency::error::CurrencyError;
 // Crate modules
 pub mod error;
 
-pub const PRECISION: u64 = 10000;
+const PRECISION: u64 = 10000;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Currency(u64);
@@ -28,6 +28,12 @@ impl Currency {
             .ok_or_else(|| CurrencyError::DecimalAddedFractionalOutOfRange(decimal, fractional))?;
 
         Ok(Self(value))
+    }
+
+    pub fn max() -> Self {
+        // Go through checks in new to never bypass them
+        // Should never panic unless logic is buggy
+        Self::new(u64::MAX / PRECISION, u64::MAX % PRECISION).unwrap()
     }
 
     pub fn add(&mut self, other: Self) -> Result<(), CurrencyError> {
@@ -100,7 +106,8 @@ mod tests {
 
     #[test]
     fn correct_max_value() {
-        assert!(Currency::new(u64::MAX / PRECISION - 1, PRECISION - 1).is_ok());
+        // Should not panic
+        Currency::max();
     }
 
     #[test]
@@ -119,9 +126,16 @@ mod tests {
     }
 
     #[test]
+    fn correct_add_0_to_max() {
+        let mut first = Currency::max();
+        let second = Currency::new(0, 0).unwrap();
+        assert!(first.add(second).is_ok());
+    }
+
+    #[test]
     fn incorrect_add_overflow() -> Result<(), ()> {
-        let mut first = Currency::new(u64::MAX / PRECISION - 1, 0).unwrap();
-        let second = Currency::new(u64::MAX / PRECISION - 1, 0).unwrap();
+        let mut first = Currency::max();
+        let second = Currency::new(0, 1).unwrap();
         match first.add(second) {
             Err(CurrencyError::AddingOtherOutOfRange) => Ok(()),
             _ => Err(()),
