@@ -3,7 +3,6 @@ use std::convert::TryFrom;
 
 // Crate paths
 use api::currency::Currency;
-use api::engine::account::Account;
 use api::engine::Engine;
 use api::error::TransactionsProcessorError;
 use api::transactions::Transaction;
@@ -133,26 +132,23 @@ fn print_accounts(engine: &Engine) {
     // Print csv header
     println!("client, available, held, total, locked");
 
-    for (
-        client,
-        Account {
-            available,
-            held,
-            locked,
-        },
-    ) in engine.iter()
-    {
+    for (client, mutex) in engine.iter() {
+        let account = mutex.lock().unwrap();
+
         // Calculate total
-        let mut total = available.clone();
+        let mut total = account.available.clone();
         // What is better?
         // To refuse operations which exceed total? (Then implement total field in Account)
         // Or to print inacurate total value and warning during structure dump?
-        total.add(*held).unwrap_or_else(|err| {
+        total.add(account.held).unwrap_or_else(|err| {
             eprintln!("WARNING: total is out of range: {}", err);
         });
 
         // Print data
-        println!("{},{},{},{},{}", client, available, held, total, locked);
+        println!(
+            "{},{},{},{},{}",
+            client, account.available, account.held, total, account.locked
+        );
     }
 }
 

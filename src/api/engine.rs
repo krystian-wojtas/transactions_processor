@@ -1,6 +1,7 @@
 // Standard paths
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::sync::Mutex;
 
 // Crate paths
 use self::account::Account;
@@ -12,7 +13,7 @@ pub mod account;
 pub mod error;
 
 pub struct Engine {
-    accounts: HashMap<u16, Account>,
+    accounts: HashMap<u16, Mutex<Account>>,
     // Should it track client id also and verify later that disputed transactions are valid?
     transactions: HashMap<u32, Currency>,
     transactions_disputed: HashSet<u32>,
@@ -29,7 +30,12 @@ impl Engine {
 
     pub fn deposit(&mut self, client: u16, tx: u32, amount: Currency) -> Result<(), EngineError> {
         match self.accounts.get_mut(&client) {
-            Some(account) => {
+            Some(mutex) => {
+                let mut account = mutex
+                    .lock()
+                    // Panic if mutex is poisoned
+                    .unwrap();
+
                 account
                     .available
                     .add(amount)
@@ -41,7 +47,7 @@ impl Engine {
                     .available
                     .add(amount)
                     .map_err(|err| EngineError::CannotDeposit(client, tx, amount, err))?;
-                self.accounts.insert(client, account);
+                self.accounts.insert(client, Mutex::new(account));
             }
         };
 
@@ -64,10 +70,17 @@ impl Engine {
         amount: Currency,
     ) -> Result<(), EngineError> {
         match self.accounts.get_mut(&client) {
-            Some(account) => account
-                .available
-                .substract(amount)
-                .map_err(|err| EngineError::CannotWithdrawal(client, tx, amount, err)),
+            Some(mutex) => {
+                let mut account = mutex
+                    .lock()
+                    // Panic if mutex is poisoned
+                    .unwrap();
+
+                account
+                    .available
+                    .substract(amount)
+                    .map_err(|err| EngineError::CannotWithdrawal(client, tx, amount, err))
+            }
             None => Err(EngineError::AccountDoesNotExist(client)),
         }?;
 
@@ -88,19 +101,24 @@ impl Engine {
             .get(&tx)
             .ok_or_else(|| EngineError::DisputeCannotFindTransaction(tx))?;
 
-        let account = self
+        let mutex = self
             .accounts
             .get_mut(&client)
             .ok_or_else(|| EngineError::DisputeCannotFindAccount(client))?;
 
-        account
-            .available
-            .substract(*amount)
-            .map_err(|err| EngineError::DisputeCannotSubstractAvailable(err))?;
-        account
-            .held
-            .add(*amount)
-            .map_err(|err| EngineError::DisputeCannotAddHeld(err))?;
+        // Limit mutex lock time
+        {
+            let mut account = mutex.lock().unwrap();
+
+            account
+                .available
+                .substract(*amount)
+                .map_err(|err| EngineError::DisputeCannotSubstractAvailable(err))?;
+            account
+                .held
+                .add(*amount)
+                .map_err(|err| EngineError::DisputeCannotAddHeld(err))?;
+        }
 
         self.transactions_disputed.insert(tx);
 
@@ -117,19 +135,24 @@ impl Engine {
             return Err(EngineError::ResolveTransactionNotDisputed(tx));
         }
 
-        let account = self
+        let mutex = self
             .accounts
             .get_mut(&client)
             .ok_or_else(|| EngineError::ResolveCannotFindAccount(client))?;
 
-        account
-            .available
-            .add(*amount)
-            .map_err(|err| EngineError::ResolveCannotAddAvailable(err))?;
-        account
-            .held
-            .substract(*amount)
-            .map_err(|err| EngineError::ResolveCannotSubstractHeld(err))?;
+        // Limit mutex lock time
+        {
+            let mut account = mutex.lock().unwrap();
+
+            account
+                .available
+                .add(*amount)
+                .map_err(|err| EngineError::ResolveCannotAddAvailable(err))?;
+            account
+                .held
+                .substract(*amount)
+                .map_err(|err| EngineError::ResolveCannotSubstractHeld(err))?;
+        }
 
         self.transactions_disputed.remove(&tx);
 
@@ -146,22 +169,27 @@ impl Engine {
             return Err(EngineError::ChargebackTransactionNotDisputed(tx));
         }
 
-        let account = self
+        let mutex = self
             .accounts
             .get_mut(&client)
             .ok_or_else(|| EngineError::ChargebackCannotFindAccount(client))?;
 
-        account
-            .held
-            .substract(*amount)
-            .map_err(|err| EngineError::ChargebackCannotSubstractHeld(err))?;
+        // Limit mutex lock time
+        {
+            let mut account = mutex.lock().unwrap();
+
+            account
+                .held
+                .substract(*amount)
+                .map_err(|err| EngineError::ChargebackCannotSubstractHeld(err))?;
+        }
 
         self.transactions_disputed.remove(&tx);
 
         Ok(())
     }
 
-    pub fn iter(&self) -> std::collections::hash_map::Iter<u16, Account> {
+    pub fn iter(&self) -> std::collections::hash_map::Iter<u16, Mutex<Account>> {
         self.accounts.iter()
     }
 }
