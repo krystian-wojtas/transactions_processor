@@ -18,7 +18,7 @@ pub struct Engine {
     accounts: RwLock<HashMap<u16, Mutex<Account>>>,
     // Should it track client id also and verify later that disputed transactions are valid?
     transactions: RwLock<HashMap<u32, Currency>>,
-    transactions_disputed: HashSet<u32>,
+    transactions_disputed: RwLock<HashSet<u32>>,
 }
 
 impl Engine {
@@ -26,7 +26,7 @@ impl Engine {
         Engine {
             accounts: RwLock::new(HashMap::new()),
             transactions: RwLock::new(HashMap::new()),
-            transactions_disputed: HashSet::new(),
+            transactions_disputed: RwLock::new(HashSet::new()),
         }
     }
 
@@ -137,8 +137,14 @@ impl Engine {
     }
 
     pub fn dispute(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
-        if self.transactions_disputed.contains(&tx) {
-            return Err(EngineError::DisputeAlreadyDisputed(tx));
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
+
+            if transactions_disputed_lock_read.contains(&tx) {
+                return Err(EngineError::DisputeAlreadyDisputed(tx));
+            }
         }
 
         let amount;
@@ -175,7 +181,12 @@ impl Engine {
                 .map_err(|err| EngineError::DisputeCannotAddHeld(err))?;
         }
 
-        self.transactions_disputed.insert(tx);
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let mut transactions_disputed_lock_write = self.transactions_disputed.write().unwrap();
+            transactions_disputed_lock_write.insert(tx);
+        }
 
         Ok(())
     }
@@ -194,8 +205,14 @@ impl Engine {
             amount = amount_ref.clone();
         }
 
-        if !self.transactions_disputed.contains(&tx) {
-            return Err(EngineError::ResolveTransactionNotDisputed(tx));
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
+
+            if !transactions_disputed_lock_read.contains(&tx) {
+                return Err(EngineError::ResolveTransactionNotDisputed(tx));
+            }
         }
 
         // Limit lock time
@@ -219,7 +236,12 @@ impl Engine {
                 .map_err(|err| EngineError::ResolveCannotSubstractHeld(err))?;
         }
 
-        self.transactions_disputed.remove(&tx);
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let mut transactions_disputed_lock_write = self.transactions_disputed.write().unwrap();
+            transactions_disputed_lock_write.remove(&tx);
+        }
 
         Ok(())
     }
@@ -238,8 +260,14 @@ impl Engine {
             amount = amount_ref.clone();
         }
 
-        if !self.transactions_disputed.contains(&tx) {
-            return Err(EngineError::ChargebackTransactionNotDisputed(tx));
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
+
+            if !transactions_disputed_lock_read.contains(&tx) {
+                return Err(EngineError::ChargebackTransactionNotDisputed(tx));
+            }
         }
 
         // Limit lock time
@@ -258,7 +286,12 @@ impl Engine {
                 .map_err(|err| EngineError::ChargebackCannotSubstractHeld(err))?;
         }
 
-        self.transactions_disputed.remove(&tx);
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let mut transactions_disputed_lock_write = self.transactions_disputed.write().unwrap();
+            transactions_disputed_lock_write.remove(&tx);
+        }
 
         Ok(())
     }
