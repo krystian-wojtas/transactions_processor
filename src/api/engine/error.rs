@@ -13,6 +13,8 @@ pub enum EngineError {
     CannotDeposit(u16, u32, Currency, CurrencyError),
     CannotWithdrawal(u16, u32, Currency, CurrencyError),
     AccountDoesNotExist(u16),
+    DepositTransactionNotUnique(u32),
+    WithdrawalTransactionNotUnique(u32),
 }
 
 // Add empty Error trait
@@ -30,6 +32,18 @@ fn desc(amount_error: &EngineError) -> String {
             client, tx, amount, err
         ),
         AccountDoesNotExist(client) => format!("account for client: {} does not exist", client),
+        DepositTransactionNotUnique(tx) => {
+            format!(
+                "deposit transaction should be uniqe but already exist: {}",
+                tx
+            )
+        }
+        WithdrawalTransactionNotUnique(tx) => {
+            format!(
+                "withdrawal transaction should be uniqe but already exist: {}",
+                tx
+            )
+        }
     }
 }
 
