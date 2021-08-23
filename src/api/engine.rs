@@ -136,6 +136,31 @@ impl Engine {
         Ok(())
     }
 
+    pub fn chargeback(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
+        let amount = self
+            .transactions
+            .get(&tx)
+            .ok_or_else(|| EngineError::ChargebackCannotFindTransaction(tx))?;
+
+        if !self.transactions_disputed.contains(&tx) {
+            return Err(EngineError::ChargebackTransactionNotDisputed(tx));
+        }
+
+        let account = self
+            .accounts
+            .get_mut(&client)
+            .ok_or_else(|| EngineError::ChargebackCannotFindAccount(client))?;
+
+        account
+            .held
+            .substract(*amount)
+            .map_err(|err| EngineError::ChargebackCannotSubstractHeld(err))?;
+
+        self.transactions_disputed.remove(&tx);
+
+        Ok(())
+    }
+
     pub fn iter(&self) -> std::collections::hash_map::Iter<u16, Account> {
         self.accounts.iter()
     }
@@ -286,6 +311,35 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         match engine.resolve(1, 1) {
             Err(EngineError::ResolveTransactionNotDisputed(_)) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn correct_chargeback() {
+        let mut engine = Engine::new();
+        let amount = Currency::new(1, 1).unwrap();
+        assert!(engine.deposit(1, 1, amount).is_ok());
+        assert!(engine.dispute(1, 1).is_ok());
+        assert!(engine.chargeback(1, 1).is_ok());
+    }
+
+    #[test]
+    fn incorrect_chargeback_unexisting_tx() -> Result<(), ()> {
+        let mut engine = Engine::new();
+        match engine.chargeback(1, 1) {
+            Err(EngineError::ChargebackCannotFindTransaction(_)) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn incorrect_chargeback_not_disputed_tx() -> Result<(), ()> {
+        let mut engine = Engine::new();
+        let amount = Currency::new(1, 1).unwrap();
+        assert!(engine.deposit(1, 1, amount).is_ok());
+        match engine.chargeback(1, 1) {
+            Err(EngineError::ChargebackTransactionNotDisputed(_)) => Ok(()),
             _ => Err(()),
         }
     }

@@ -25,6 +25,11 @@ pub enum EngineError {
     ResolveCannotFindAccount(u16),
     ResolveCannotAddAvailable(CurrencyError),
     ResolveCannotSubstractHeld(CurrencyError),
+    ChargebackTransactionNotDisputed(u32),
+    ChargebackCannotFindTransaction(u32),
+    ChargebackCannotFindAccount(u16),
+    ChargebackCannotAddAvailable(CurrencyError),
+    ChargebackCannotSubstractHeld(CurrencyError),
 }
 
 // Add empty Error trait
@@ -83,6 +88,24 @@ fn desc(amount_error: &EngineError) -> String {
         }
         ResolveCannotSubstractHeld(ref err) => {
             format!("cannot add held funds: {} to resolve", err)
+        }
+        ChargebackTransactionNotDisputed(tx) => {
+            format!(
+                "cannot chargeback transaction which was not disputed: {}",
+                tx
+            )
+        }
+        ChargebackCannotFindTransaction(tx) => {
+            format!("cannot find transaction to chargeback: {}", tx)
+        }
+        ChargebackCannotFindAccount(tx) => {
+            format!("cannot find account to chargeback: {}", tx)
+        }
+        ChargebackCannotAddAvailable(ref err) => {
+            format!("cannot substract available funds: {} to chargeback", err)
+        }
+        ChargebackCannotSubstractHeld(ref err) => {
+            format!("cannot add held funds: {} to chargeback", err)
         }
     }
 }

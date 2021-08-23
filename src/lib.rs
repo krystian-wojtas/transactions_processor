@@ -126,7 +126,11 @@ fn dispatch(
 
             Ok(())
         }
-        _ => unimplemented!(),
+        Type::Chargeback => {
+            engine.chargeback(transaction.client, transaction.tx)?;
+
+            Ok(())
+        }
     }
 }
 
