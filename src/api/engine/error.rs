@@ -10,6 +10,7 @@ use crate::api::currency::Currency;
 
 #[derive(Debug, PartialEq)]
 pub enum EngineError {
+    AccountLocked(u16),
     CannotDeposit(u16, u32, Currency, CurrencyError),
     CannotWithdrawal(u16, u32, Currency, CurrencyError),
     AccountDoesNotExist(u16),
@@ -39,6 +40,7 @@ impl error::Error for EngineError {}
 fn desc(amount_error: &EngineError) -> String {
     use self::EngineError::*;
     match *amount_error {
+        AccountLocked(client) => format!("cannot operate as client: {} account is locked", client),
         CannotDeposit(client, tx, amount, ref err) => format!(
             "cannot deposit: client: {}, transaction: {}, amount: {}, reason: {}",
             client, tx, amount, err

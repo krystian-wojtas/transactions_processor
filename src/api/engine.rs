@@ -57,6 +57,10 @@ impl Engine {
                     // Panic if mutex is poisoned
                     .unwrap();
 
+                if account.locked {
+                    return Err(EngineError::AccountLocked(client));
+                }
+
                 account
                     .available
                     .add(amount)
@@ -123,6 +127,10 @@ impl Engine {
                         .lock()
                         // Panic if mutex is poisoned
                         .unwrap();
+
+                    if account.locked {
+                        return Err(EngineError::AccountLocked(client));
+                    }
 
                     account
                         .available
@@ -284,6 +292,8 @@ impl Engine {
                 .held
                 .substract(amount)
                 .map_err(|err| EngineError::ChargebackCannotSubstractHeld(err))?;
+
+            account.locked = true;
         }
 
         // Limit lock time
@@ -475,6 +485,19 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         match engine.chargeback(1, 1) {
             Err(EngineError::ChargebackTransactionNotDisputed(_)) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn incorrect_deposit_on_locked_account_tx() -> Result<(), ()> {
+        let mut engine = Engine::new();
+        let amount = Currency::new(1, 1).unwrap();
+        assert!(engine.deposit(1, 1, amount).is_ok());
+        assert!(engine.dispute(1, 1).is_ok());
+        assert!(engine.chargeback(1, 1).is_ok());
+        match engine.deposit(1, 2, amount) {
+            Err(EngineError::AccountLocked(_)) => Ok(()),
             _ => Err(()),
         }
     }
