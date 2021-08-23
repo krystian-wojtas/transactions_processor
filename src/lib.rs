@@ -121,6 +121,11 @@ fn dispatch(
 
             Ok(())
         }
+        Type::Resolve => {
+            engine.resolve(transaction.client, transaction.tx)?;
+
+            Ok(())
+        }
         _ => unimplemented!(),
     }
 }

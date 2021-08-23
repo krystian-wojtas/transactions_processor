@@ -20,6 +20,11 @@ pub enum EngineError {
     DisputeCannotFindAccount(u16),
     DisputeCannotSubstractAvailable(CurrencyError),
     DisputeCannotAddHeld(CurrencyError),
+    ResolveTransactionNotDisputed(u32),
+    ResolveCannotFindTransaction(u32),
+    ResolveCannotFindAccount(u16),
+    ResolveCannotAddAvailable(CurrencyError),
+    ResolveCannotSubstractHeld(CurrencyError),
 }
 
 // Add empty Error trait
@@ -63,6 +68,21 @@ fn desc(amount_error: &EngineError) -> String {
         }
         DisputeCannotAddHeld(ref err) => {
             format!("cannot add held funds: {} to dispute", err)
+        }
+        ResolveTransactionNotDisputed(tx) => {
+            format!("cannot resolve transaction which was not disputed: {}", tx)
+        }
+        ResolveCannotFindTransaction(tx) => {
+            format!("cannot find transaction to resolve: {}", tx)
+        }
+        ResolveCannotFindAccount(tx) => {
+            format!("cannot find account to resolve: {}", tx)
+        }
+        ResolveCannotAddAvailable(ref err) => {
+            format!("cannot substract available funds: {} to resolve", err)
+        }
+        ResolveCannotSubstractHeld(ref err) => {
+            format!("cannot add held funds: {} to resolve", err)
         }
     }
 }

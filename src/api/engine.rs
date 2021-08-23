@@ -107,6 +107,35 @@ impl Engine {
         Ok(())
     }
 
+    pub fn resolve(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
+        let amount = self
+            .transactions
+            .get(&tx)
+            .ok_or_else(|| EngineError::ResolveCannotFindTransaction(tx))?;
+
+        if !self.transactions_disputed.contains(&tx) {
+            return Err(EngineError::ResolveTransactionNotDisputed(tx));
+        }
+
+        let account = self
+            .accounts
+            .get_mut(&client)
+            .ok_or_else(|| EngineError::ResolveCannotFindAccount(client))?;
+
+        account
+            .available
+            .add(*amount)
+            .map_err(|err| EngineError::ResolveCannotAddAvailable(err))?;
+        account
+            .held
+            .substract(*amount)
+            .map_err(|err| EngineError::ResolveCannotSubstractHeld(err))?;
+
+        self.transactions_disputed.remove(&tx);
+
+        Ok(())
+    }
+
     pub fn iter(&self) -> std::collections::hash_map::Iter<u16, Account> {
         self.accounts.iter()
     }
@@ -228,6 +257,35 @@ mod tests {
         assert!(engine.dispute(1, 1).is_ok());
         match engine.dispute(1, 1) {
             Err(EngineError::DisputeAlreadyDisputed(_)) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn correct_resolve() {
+        let mut engine = Engine::new();
+        let amount = Currency::new(1, 1).unwrap();
+        assert!(engine.deposit(1, 1, amount).is_ok());
+        assert!(engine.dispute(1, 1).is_ok());
+        assert!(engine.resolve(1, 1).is_ok());
+    }
+
+    #[test]
+    fn incorrect_resolve_unexisting_tx() -> Result<(), ()> {
+        let mut engine = Engine::new();
+        match engine.resolve(1, 1) {
+            Err(EngineError::ResolveCannotFindTransaction(_)) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn incorrect_resolve_not_disputed_tx() -> Result<(), ()> {
+        let mut engine = Engine::new();
+        let amount = Currency::new(1, 1).unwrap();
+        assert!(engine.deposit(1, 1, amount).is_ok());
+        match engine.resolve(1, 1) {
+            Err(EngineError::ResolveTransactionNotDisputed(_)) => Ok(()),
             _ => Err(()),
         }
     }
