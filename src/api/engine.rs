@@ -1,5 +1,6 @@
 // Standard paths
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 // Crate paths
 use self::account::Account;
@@ -12,7 +13,9 @@ pub mod error;
 
 pub struct Engine {
     accounts: HashMap<u16, Account>,
+    // Should it track client id also and verify later that disputed transactions are valid?
     transactions: HashMap<u32, Currency>,
+    transactions_disputed: HashSet<u32>,
 }
 
 impl Engine {
@@ -20,6 +23,7 @@ impl Engine {
         Engine {
             accounts: HashMap::new(),
             transactions: HashMap::new(),
+            transactions_disputed: HashSet::new(),
         }
     }
 
@@ -71,6 +75,34 @@ impl Engine {
         if self.transactions.insert(tx, amount).is_some() {
             return Err(EngineError::WithdrawalTransactionNotUnique(tx));
         }
+
+        Ok(())
+    }
+
+    pub fn dispute(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
+        if self.transactions_disputed.contains(&tx) {
+            return Err(EngineError::DisputeAlreadyDisputed(tx));
+        }
+        let amount = self
+            .transactions
+            .get(&tx)
+            .ok_or_else(|| EngineError::DisputeCannotFindTransaction(tx))?;
+
+        let account = self
+            .accounts
+            .get_mut(&client)
+            .ok_or_else(|| EngineError::DisputeCannotFindAccount(client))?;
+
+        account
+            .available
+            .substract(*amount)
+            .map_err(|err| EngineError::DisputeCannotSubstractAvailable(err))?;
+        account
+            .held
+            .add(*amount)
+            .map_err(|err| EngineError::DisputeCannotAddHeld(err))?;
+
+        self.transactions_disputed.insert(tx);
 
         Ok(())
     }
@@ -176,6 +208,26 @@ mod tests {
                 _,
                 CurrencyError::SubstractingOtherNegative,
             )) => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn correct_dispute() {
+        let mut engine = Engine::new();
+        let amount = Currency::new(1, 1).unwrap();
+        assert!(engine.deposit(1, 1, amount).is_ok());
+        assert!(engine.dispute(1, 1).is_ok());
+    }
+
+    #[test]
+    fn incorrect_dispute_twice_some_tx() -> Result<(), ()> {
+        let mut engine = Engine::new();
+        let amount = Currency::new(1, 1).unwrap();
+        assert!(engine.deposit(1, 1, amount).is_ok());
+        assert!(engine.dispute(1, 1).is_ok());
+        match engine.dispute(1, 1) {
+            Err(EngineError::DisputeAlreadyDisputed(_)) => Ok(()),
             _ => Err(()),
         }
     }

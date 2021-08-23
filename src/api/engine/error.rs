@@ -15,6 +15,11 @@ pub enum EngineError {
     AccountDoesNotExist(u16),
     DepositTransactionNotUnique(u32),
     WithdrawalTransactionNotUnique(u32),
+    DisputeAlreadyDisputed(u32),
+    DisputeCannotFindTransaction(u32),
+    DisputeCannotFindAccount(u16),
+    DisputeCannotSubstractAvailable(CurrencyError),
+    DisputeCannotAddHeld(CurrencyError),
 }
 
 // Add empty Error trait
@@ -43,6 +48,21 @@ fn desc(amount_error: &EngineError) -> String {
                 "withdrawal transaction should be uniqe but already exist: {}",
                 tx
             )
+        }
+        DisputeAlreadyDisputed(tx) => {
+            format!("transaction already disputed: {}", tx)
+        }
+        DisputeCannotFindTransaction(tx) => {
+            format!("cannot find transaction to dispute: {}", tx)
+        }
+        DisputeCannotFindAccount(tx) => {
+            format!("cannot find account to dispute: {}", tx)
+        }
+        DisputeCannotSubstractAvailable(ref err) => {
+            format!("cannot substract available funds to dispute: {}", err)
+        }
+        DisputeCannotAddHeld(ref err) => {
+            format!("cannot add held funds: {} to dispute", err)
         }
     }
 }

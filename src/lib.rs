@@ -116,11 +116,11 @@ fn dispatch(
 
             Ok(())
         }
-        // Type::Dispute => {
-        //     engine.dispute(transaction.client, transaction.tx)?;
+        Type::Dispute => {
+            engine.dispute(transaction.client, transaction.tx)?;
 
-        //     Ok(())
-        // }
+            Ok(())
+        }
         _ => unimplemented!(),
     }
 }
