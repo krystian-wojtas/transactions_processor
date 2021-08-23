@@ -12,28 +12,64 @@ use api::transactions::Type;
 pub mod api;
 
 pub fn process(file: &str) -> Result<(), TransactionsProcessorError> {
+    // Create transaction engine
     let mut engine = Engine::new();
 
+    // Prepare input stream with transactions to process
     let mut rdr = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
         .from_path(file)
         .map_err(|err| TransactionsProcessorError::CannotReadInputFile(file.to_string(), err))?;
 
+    // Read first row which is supposed csv headers
     let mut raw_record = csv::ByteRecord::new();
     let headers = rdr.byte_headers().map_err(|err| {
         TransactionsProcessorError::CannotReadInputFileHeaders(file.to_string(), err)
     })?;
     let headers = headers.clone();
 
-    while rdr.read_byte_record(&mut raw_record).map_err(|err| {
-        TransactionsProcessorError::CannotReadInputFileRecord(file.to_string(), err)
-    })? {
-        let transaction: Transaction = raw_record.deserialize(Some(&headers)).map_err(|err| {
-            TransactionsProcessorError::CannotDeserializeRecord(file.to_string(), err)
-        })?;
-
-        dispatch(&mut engine, &transaction)?;
+    // Main loop to process all transactions
+    loop {
+        match rdr.read_byte_record(&mut raw_record) {
+            // Encountered error during reading record
+            Err(err) => {
+                let nested_error =
+                    TransactionsProcessorError::CannotReadInputFileRecord(file.to_string(), err);
+                // Finish processing with fatal error
+                return Err(nested_error);
+                // Or only print warning if error is not considered fatal
+                // and continue processing any following records
+                // print_record_warning(&raw_record, nested_error);
+            }
+            // End of input csv file, finish
+            Ok(false) => break,
+            // Record is read into buffer
+            Ok(true) => {
+                // Process record
+                // If any errors, then print them as warnings and continue with others
+                process_record(&mut engine, &raw_record, &headers, file).unwrap_or_else(|err| {
+                    print_record_warning(raw_record.position(), err);
+                });
+            }
+        }
     }
+
+    Ok(())
+}
+
+fn process_record(
+    engine: &mut Engine,
+    raw_record: &csv::ByteRecord,
+    headers: &csv::ByteRecord,
+    file: &str,
+) -> Result<(), TransactionsProcessorError> {
+    // Try to deserialize record into assumed structure
+    let transaction: Transaction = raw_record.deserialize(Some(&headers)).map_err(|err| {
+        TransactionsProcessorError::CannotDeserializeRecord(file.to_string(), err)
+    })?;
+
+    // Dispatach transaction into proper engine call
+    dispatch(engine, &transaction)?;
 
     Ok(())
 }
@@ -79,4 +115,22 @@ fn dispatch(
         }
         _ => unimplemented!(),
     }
+}
+
+fn print_record_warning(
+    optional_position: Option<&csv::Position>,
+    err: TransactionsProcessorError,
+) {
+    match optional_position {
+        Some(position) => {
+            eprintln!(
+                "WARNING: ignored record in line: {}, reason: {}",
+                position.line(),
+                err
+            );
+        }
+        None => {
+            eprintln!("WARNING: ignored record, reason: {}", err);
+        }
+    };
 }
