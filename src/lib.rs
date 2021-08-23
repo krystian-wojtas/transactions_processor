@@ -85,11 +85,11 @@ fn dispatch(
         Type::Deposit => {
             // Ensure required field is provided
             let amount = transaction.amount.ok_or_else(|| {
-                TransactionsProcessorError::MissedMandatoryAmountInInputRecordDeposit
+                TransactionsProcessorError::MissedMandatoryAmountInInputRecord
             })?;
             // Parse input string into Currency type
             let amount = Currency::try_from(amount).map_err(|err| {
-                TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecordDeposit(
+                TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord(
                     amount.to_string(),
                     err,
                 )
@@ -102,11 +102,11 @@ fn dispatch(
         Type::Withdrawal => {
             // Ensure required field is provided
             let amount = transaction.amount.ok_or_else(|| {
-                TransactionsProcessorError::MissedMandatoryAmountInInputRecordWithdrawal
+                TransactionsProcessorError::MissedMandatoryAmountInInputRecord
             })?;
             // Parse input string into Currency type
             let amount = Currency::try_from(amount).map_err(|err| {
-                TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecordWithdrawal(
+                TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord(
                     amount.to_string(),
                     err,
                 )

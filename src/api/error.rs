@@ -15,10 +15,8 @@ pub enum TransactionsProcessorError {
     CannotReadInputFileRecord(String, csv::Error),
     CannotDeserializeRecord(String, csv::Error),
     CannotBuildCurrencyValue(CurrencyError),
-    MissedMandatoryAmountInInputRecordDeposit,
-    MissedMandatoryAmountInInputRecordWithdrawal,
-    CannotParseMandatoryInputAmountInInputRecordDeposit(String, CurrencyError),
-    CannotParseMandatoryInputAmountInInputRecordWithdrawal(String, CurrencyError),
+    MissedMandatoryAmountInInputRecord,
+    CannotParseMandatoryInputAmountInInputRecord(String, CurrencyError),
     NestedEngineError(EngineError),
 }
 
@@ -46,18 +44,11 @@ fn desc(amount_error: &TransactionsProcessorError) -> String {
         CannotBuildCurrencyValue(ref err) => {
             format!("cannot build currency value, reason: {}", err)
         }
-        MissedMandatoryAmountInInputRecordDeposit => {
-            "input file misses mandatory amount value for deposit operation".to_string()
+        MissedMandatoryAmountInInputRecord => {
+            "input file misses mandatory amount value".to_string()
         }
-        MissedMandatoryAmountInInputRecordWithdrawal => {
-            "input file misses mandatory amount value for withdrawal operation".to_string()
-        }
-        CannotParseMandatoryInputAmountInInputRecordDeposit(ref amount, ref err) => format!(
-            "cannot parse input amount for deposit: {}, reason: {}",
-            amount, err
-        ),
-        CannotParseMandatoryInputAmountInInputRecordWithdrawal(ref amount, ref err) => format!(
-            "cannot parse input amount for withdrawal: {}, reason: {}",
+        CannotParseMandatoryInputAmountInInputRecord(ref amount, ref err) => format!(
+            "cannot parse input amount: {}, reason: {}",
             amount, err
         ),
         NestedEngineError(ref err) => format!("enginge gives error: {}", err),
