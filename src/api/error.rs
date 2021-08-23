@@ -47,10 +47,9 @@ fn desc(amount_error: &TransactionsProcessorError) -> String {
         MissedMandatoryAmountInInputRecord => {
             "input file misses mandatory amount value".to_string()
         }
-        CannotParseMandatoryInputAmountInInputRecord(ref amount, ref err) => format!(
-            "cannot parse input amount: {}, reason: {}",
-            amount, err
-        ),
+        CannotParseMandatoryInputAmountInInputRecord(ref amount, ref err) => {
+            format!("cannot parse input amount: {}, reason: {}", amount, err)
+        }
         NestedEngineError(ref err) => format!("enginge gives error: {}", err),
     }
 }

@@ -77,40 +77,35 @@ fn process_record(
     Ok(())
 }
 
+fn get_and_parse_amount(amount: Option<&str>) -> Result<Currency, TransactionsProcessorError> {
+    // Ensure required field is provided
+    let amount =
+        amount.ok_or_else(|| TransactionsProcessorError::MissedMandatoryAmountInInputRecord)?;
+    // Parse input string into Currency type
+    let amount = Currency::try_from(amount).map_err(|err| {
+        TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord(
+            amount.to_string(),
+            err,
+        )
+    })?;
+
+    Ok(amount)
+}
+
 fn dispatch(
     engine: &mut Engine,
     transaction: &Transaction,
 ) -> Result<(), TransactionsProcessorError> {
     match transaction.type_ {
         Type::Deposit => {
-            // Ensure required field is provided
-            let amount = transaction.amount.ok_or_else(|| {
-                TransactionsProcessorError::MissedMandatoryAmountInInputRecord
-            })?;
-            // Parse input string into Currency type
-            let amount = Currency::try_from(amount).map_err(|err| {
-                TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord(
-                    amount.to_string(),
-                    err,
-                )
-            })?;
+            let amount = get_and_parse_amount(transaction.amount)?;
 
             engine.deposit(transaction.client, transaction.tx, amount)?;
 
             Ok(())
         }
         Type::Withdrawal => {
-            // Ensure required field is provided
-            let amount = transaction.amount.ok_or_else(|| {
-                TransactionsProcessorError::MissedMandatoryAmountInInputRecord
-            })?;
-            // Parse input string into Currency type
-            let amount = Currency::try_from(amount).map_err(|err| {
-                TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord(
-                    amount.to_string(),
-                    err,
-                )
-            })?;
+            let amount = get_and_parse_amount(transaction.amount)?;
 
             engine.withdrawal(transaction.client, transaction.tx, amount)?;
 
