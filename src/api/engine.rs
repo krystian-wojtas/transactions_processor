@@ -159,17 +159,7 @@ impl Engine {
         Ok(())
     }
 
-    pub fn dispute(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
-
-            if transactions_disputed_lock_read.contains(&tx) {
-                return Err(EngineError::DisputeAlreadyDisputed(tx));
-            }
-        }
-
+    fn get_transaction_amount(&self, tx: u32) -> Result<Currency, EngineError> {
         let amount;
         // Limit lock time
         {
@@ -182,6 +172,22 @@ impl Engine {
 
             amount = amount_ref.clone();
         }
+
+        Ok(amount)
+    }
+
+    pub fn dispute(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
+
+            if transactions_disputed_lock_read.contains(&tx) {
+                return Err(EngineError::DisputeAlreadyDisputed(tx));
+            }
+        }
+
+        let amount = self.get_transaction_amount(tx)?;
 
         // Limit lock time
         {
@@ -215,18 +221,7 @@ impl Engine {
     }
 
     pub fn resolve(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
-        let amount;
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let transactions_lock_read = self.transactions.read().unwrap();
-
-            let amount_ref = transactions_lock_read
-                .get(&tx)
-                .ok_or_else(|| EngineError::CannotFindTransaction(tx))?;
-
-            amount = amount_ref.clone();
-        }
+        let amount = self.get_transaction_amount(tx)?;
 
         // Limit lock time
         {
@@ -270,18 +265,7 @@ impl Engine {
     }
 
     pub fn chargeback(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
-        let amount;
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let transactions_lock_read = self.transactions.read().unwrap();
-
-            let amount_ref = transactions_lock_read
-                .get(&tx)
-                .ok_or_else(|| EngineError::CannotFindTransaction(tx))?;
-
-            amount = amount_ref.clone();
-        }
+        let amount = self.get_transaction_amount(tx)?;
 
         // Limit lock time
         {
