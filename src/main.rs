@@ -14,7 +14,7 @@ fn main() {
     });
 
     if let Err(err) = process(&file) {
-        eprintln!("Error: {}", err);
+        eprintln!("Error: {:?}", err);
         process::exit(1);
     }
 }
