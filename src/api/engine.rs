@@ -229,9 +229,7 @@ impl Engine {
         }
     }
 
-    pub fn resolve(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
-        let amount = self.get_transaction_amount(tx)?;
-
+    fn ensure_transaction_is_disputed(&self, tx: u32) -> Result<(), EngineError> {
         // Limit lock time
         {
             // Panic if lock is poisoned
@@ -241,6 +239,15 @@ impl Engine {
                 return Err(EngineError::TransactionNotDisputed(tx));
             }
         }
+
+        Ok(())
+
+    }
+
+    pub fn resolve(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
+        let amount = self.get_transaction_amount(tx)?;
+
+        self.ensure_transaction_is_disputed(tx)?;
 
         // Limit lock time
         {
@@ -271,15 +278,7 @@ impl Engine {
     pub fn chargeback(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
         let amount = self.get_transaction_amount(tx)?;
 
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
-
-            if !transactions_disputed_lock_read.contains(&tx) {
-                return Err(EngineError::TransactionNotDisputed(tx));
-            }
-        }
+        self.ensure_transaction_is_disputed(tx)?;
 
         // Limit lock time
         {
