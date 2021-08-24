@@ -17,7 +17,7 @@ pub mod error;
 pub struct Engine {
     accounts: RwLock<HashMap<u16, Mutex<Account>>>,
     // Should it track client id also and verify later that disputed transactions are valid?
-    transactions: HashMap<u32, Currency>,
+    transactions: RwLock<HashMap<u32, Currency>>,
     transactions_disputed: HashSet<u32>,
 }
 
@@ -25,19 +25,25 @@ impl Engine {
     pub fn new() -> Self {
         Engine {
             accounts: RwLock::new(HashMap::new()),
-            transactions: HashMap::new(),
+            transactions: RwLock::new(HashMap::new()),
             transactions_disputed: HashSet::new(),
         }
     }
 
     pub fn deposit(&mut self, client: u16, tx: u32, amount: Currency) -> Result<(), EngineError> {
-        // Does it make sense to track transactions in deposit?
-        // Is client going to complain about increasing his available cash?
-        // If not, then getting rid of it would save memory
-        //
-        // Should it checke if transaction is unique?
-        if self.transactions.insert(tx, amount).is_some() {
-            return Err(EngineError::DepositTransactionNotUnique(tx));
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let mut transactions_lock_write = self.transactions.write().unwrap();
+
+            // Does it make sense to track transactions in deposit?
+            // Is client going to complain about increasing his available cash?
+            // If not, then getting rid of it would save memory
+            //
+            // Should it check if transaction is unique?
+            if transactions_lock_write.insert(tx, amount).is_some() {
+                return Err(EngineError::DepositTransactionNotUnique(tx));
+            }
         }
 
         // Limit lock time
@@ -95,9 +101,15 @@ impl Engine {
         tx: u32,
         amount: Currency,
     ) -> Result<(), EngineError> {
-        // Should it checke if transaction is unique?
-        if self.transactions.insert(tx, amount).is_some() {
-            return Err(EngineError::WithdrawalTransactionNotUnique(tx));
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let mut transactions_lock_write = self.transactions.write().unwrap();
+
+            // Should it check if transaction is unique?
+            if transactions_lock_write.insert(tx, amount).is_some() {
+                return Err(EngineError::WithdrawalTransactionNotUnique(tx));
+            }
         }
 
         // Section with accounts locks
@@ -128,10 +140,19 @@ impl Engine {
         if self.transactions_disputed.contains(&tx) {
             return Err(EngineError::DisputeAlreadyDisputed(tx));
         }
-        let amount = self
-            .transactions
-            .get(&tx)
-            .ok_or_else(|| EngineError::DisputeCannotFindTransaction(tx))?;
+
+        let amount;
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let transactions_lock_read = self.transactions.read().unwrap();
+
+            let amount_ref = transactions_lock_read
+                .get(&tx)
+                .ok_or_else(|| EngineError::DisputeCannotFindTransaction(tx))?;
+
+            amount = amount_ref.clone();
+        }
 
         // Limit lock time
         {
@@ -146,11 +167,11 @@ impl Engine {
 
             account
                 .available
-                .substract(*amount)
+                .substract(amount)
                 .map_err(|err| EngineError::DisputeCannotSubstractAvailable(err))?;
             account
                 .held
-                .add(*amount)
+                .add(amount)
                 .map_err(|err| EngineError::DisputeCannotAddHeld(err))?;
         }
 
@@ -160,10 +181,18 @@ impl Engine {
     }
 
     pub fn resolve(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
-        let amount = self
-            .transactions
-            .get(&tx)
-            .ok_or_else(|| EngineError::ResolveCannotFindTransaction(tx))?;
+        let amount;
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let transactions_lock_read = self.transactions.read().unwrap();
+
+            let amount_ref = transactions_lock_read
+                .get(&tx)
+                .ok_or_else(|| EngineError::ResolveCannotFindTransaction(tx))?;
+
+            amount = amount_ref.clone();
+        }
 
         if !self.transactions_disputed.contains(&tx) {
             return Err(EngineError::ResolveTransactionNotDisputed(tx));
@@ -182,11 +211,11 @@ impl Engine {
 
             account
                 .available
-                .add(*amount)
+                .add(amount)
                 .map_err(|err| EngineError::ResolveCannotAddAvailable(err))?;
             account
                 .held
-                .substract(*amount)
+                .substract(amount)
                 .map_err(|err| EngineError::ResolveCannotSubstractHeld(err))?;
         }
 
@@ -196,10 +225,18 @@ impl Engine {
     }
 
     pub fn chargeback(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
-        let amount = self
-            .transactions
-            .get(&tx)
-            .ok_or_else(|| EngineError::ChargebackCannotFindTransaction(tx))?;
+        let amount;
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let transactions_lock_read = self.transactions.read().unwrap();
+
+            let amount_ref = transactions_lock_read
+                .get(&tx)
+                .ok_or_else(|| EngineError::ChargebackCannotFindTransaction(tx))?;
+
+            amount = amount_ref.clone();
+        }
 
         if !self.transactions_disputed.contains(&tx) {
             return Err(EngineError::ChargebackTransactionNotDisputed(tx));
@@ -217,7 +254,7 @@ impl Engine {
 
             account
                 .held
-                .substract(*amount)
+                .substract(amount)
                 .map_err(|err| EngineError::ChargebackCannotSubstractHeld(err))?;
         }
 
