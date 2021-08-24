@@ -220,6 +220,15 @@ impl Engine {
         Ok(())
     }
 
+    fn transaction_remove_from_disputed_list(&mut self, tx: u32) {
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let mut transactions_disputed_lock_write = self.transactions_disputed.write().unwrap();
+            transactions_disputed_lock_write.remove(&tx);
+        }
+    }
+
     pub fn resolve(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
         let amount = self.get_transaction_amount(tx)?;
 
@@ -254,12 +263,7 @@ impl Engine {
                 .map_err(|source| EngineError::ResolveCannotSubstractHeld { source })?;
         }
 
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let mut transactions_disputed_lock_write = self.transactions_disputed.write().unwrap();
-            transactions_disputed_lock_write.remove(&tx);
-        }
+        self.transaction_remove_from_disputed_list(tx);
 
         Ok(())
     }
@@ -295,12 +299,7 @@ impl Engine {
             account.locked = true;
         }
 
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let mut transactions_disputed_lock_write = self.transactions_disputed.write().unwrap();
-            transactions_disputed_lock_write.remove(&tx);
-        }
+        self.transaction_remove_from_disputed_list(tx);
 
         Ok(())
     }
