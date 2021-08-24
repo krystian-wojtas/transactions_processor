@@ -148,7 +148,7 @@ fn print_accounts(engine: &Engine) {
             // To refuse operations which exceed total? (Then implement total field in Account)
             // Or to print inacurate total value and warning during structure dump?
             total.add(account.held).unwrap_or_else(|err| {
-                eprintln!("WARNING: total is out of range: {}", err);
+                eprintln!("WARNING: total is out of range: {:?}", err);
             });
 
             // Print data
@@ -167,13 +167,13 @@ fn print_record_warning(
     match optional_position {
         Some(position) => {
             eprintln!(
-                "WARNING: failed to process record:\nline: {}\nreason: {}",
+                "WARNING: failed to process record:\nline: {}\nreason: {:?}",
                 position.line(),
                 err
             );
         }
         None => {
-            eprintln!("WARNING: ignored record, reason: {}", err);
+            eprintln!("WARNING: ignored record, reason: {:?}", err);
         }
     };
 }
