@@ -29,6 +29,15 @@ impl Engine {
     }
 
     pub fn deposit(&mut self, client: u16, tx: u32, amount: Currency) -> Result<(), EngineError> {
+        // Does it make sense to track transactions in deposit?
+        // Is client going to complain about increasing his available cash?
+        // If not, then getting rid of it would save memory
+        //
+        // Should it checke if transaction is unique?
+        if self.transactions.insert(tx, amount).is_some() {
+            return Err(EngineError::DepositTransactionNotUnique(tx));
+        }
+
         match self.accounts.get_mut(&client) {
             Some(mutex) => {
                 let mut account = mutex
@@ -51,15 +60,6 @@ impl Engine {
             }
         };
 
-        // Does it make sense to track transactions in deposit?
-        // Is client going to complain about increasing his available cash?
-        // If not, then getting rid of it would save memory
-        //
-        // Should it checke if transaction is unique?
-        if self.transactions.insert(tx, amount).is_some() {
-            return Err(EngineError::DepositTransactionNotUnique(tx));
-        }
-
         Ok(())
     }
 
@@ -69,6 +69,11 @@ impl Engine {
         tx: u32,
         amount: Currency,
     ) -> Result<(), EngineError> {
+        // Should it checke if transaction is unique?
+        if self.transactions.insert(tx, amount).is_some() {
+            return Err(EngineError::WithdrawalTransactionNotUnique(tx));
+        }
+
         match self.accounts.get_mut(&client) {
             Some(mutex) => {
                 let mut account = mutex
@@ -83,11 +88,6 @@ impl Engine {
             }
             None => Err(EngineError::AccountDoesNotExist(client)),
         }?;
-
-        // Should it checke if transaction is unique?
-        if self.transactions.insert(tx, amount).is_some() {
-            return Err(EngineError::WithdrawalTransactionNotUnique(tx));
-        }
 
         Ok(())
     }
@@ -220,7 +220,7 @@ mod tests {
         let mut engine = Engine::new();
         let amount = Currency::max();
         assert!(engine.deposit(1, 1, amount).is_ok());
-        match engine.deposit(1, 1, amount) {
+        match engine.deposit(1, 2, amount) {
             Err(EngineError::CannotDeposit(_, _, _, CurrencyError::AddingOtherOutOfRange)) => {
                 Ok(())
             }
