@@ -167,6 +167,9 @@ fn print_accounts(engine: &Engine) {
             });
 
             // Print data
+            // To easy to serde or csv crates
+            // This way is fastest
+            // Speed matters
             println!(
                 "{},{},{},{},{}",
                 client, account.available, account.held, total, account.locked
