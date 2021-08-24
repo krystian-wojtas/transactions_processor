@@ -247,7 +247,6 @@ impl Engine {
         }
 
         Ok(())
-
     }
 
     pub fn resolve(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
