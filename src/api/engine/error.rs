@@ -41,14 +41,12 @@ pub enum EngineError {
     DisputeCannotSubstractAvailable { source: CurrencyError },
     #[error("cannot add held funds: {source:?} to dispute")]
     DisputeCannotAddHeld { source: CurrencyError },
-    #[error("cannot resolve transaction which was not disputed: {0}")]
-    ResolveTransactionNotDisputed(u32),
+    #[error("transaction was not disputed: {0}")]
+    TransactionNotDisputed(u32),
     #[error("cannot substract available funds: {source:?} to resolve")]
     ResolveCannotAddAvailable { source: CurrencyError },
     #[error("cannot add held funds: {source:?} to resolve")]
     ResolveCannotSubstractHeld { source: CurrencyError },
-    #[error("cannot chargeback transaction which was not disputed: {0}")]
-    ChargebackTransactionNotDisputed(u32),
     #[error("cannot add held funds: {source:?} to chargeback")]
     ChargebackCannotSubstractHeld { source: CurrencyError },
 }

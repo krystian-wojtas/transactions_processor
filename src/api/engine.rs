@@ -241,7 +241,7 @@ impl Engine {
             let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
 
             if !transactions_disputed_lock_read.contains(&tx) {
-                return Err(EngineError::ResolveTransactionNotDisputed(tx));
+                return Err(EngineError::TransactionNotDisputed(tx));
             }
         }
 
@@ -296,7 +296,7 @@ impl Engine {
             let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
 
             if !transactions_disputed_lock_read.contains(&tx) {
-                return Err(EngineError::ChargebackTransactionNotDisputed(tx));
+                return Err(EngineError::TransactionNotDisputed(tx));
             }
         }
 
@@ -482,7 +482,7 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert_matches!(
             engine.resolve(1, 1),
-            Err(EngineError::ResolveTransactionNotDisputed(..))
+            Err(EngineError::TransactionNotDisputed(..))
         );
     }
 
@@ -511,7 +511,7 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert_matches!(
             engine.chargeback(1, 1),
-            Err(EngineError::ChargebackTransactionNotDisputed(..))
+            Err(EngineError::TransactionNotDisputed(..))
         );
     }
 
