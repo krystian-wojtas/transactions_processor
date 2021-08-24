@@ -59,8 +59,6 @@ pub enum EngineError {
     ChargebackCannotFindTransaction(u32),
     #[error("cannot find account to chargeback: {0}")]
     ChargebackCannotFindAccount(u16),
-    #[error("cannot substract available funds: {source:?} to chargeback")]
-    ChargebackCannotAddAvailable { source: CurrencyError },
     #[error("cannot add held funds: {source:?} to chargeback")]
     ChargebackCannotSubstractHeld { source: CurrencyError },
 }
