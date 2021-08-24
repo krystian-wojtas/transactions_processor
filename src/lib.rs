@@ -167,7 +167,7 @@ fn print_record_warning(
     match optional_position {
         Some(position) => {
             eprintln!(
-                "WARNING: ignored record in line: {}, reason: {}",
+                "WARNING: failed to process record:\nline: {}\nreason: {}",
                 position.line(),
                 err
             );
