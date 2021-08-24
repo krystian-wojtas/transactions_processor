@@ -56,6 +56,8 @@ impl Engine {
     pub fn deposit(&mut self, client: u16, tx: u32, amount: Currency) -> Result<(), EngineError> {
         self.record_transaction(tx, amount)?;
 
+        // Try to deposit assuming that account already exist
+
         // Limit lock time
         {
             // Panic if lock is poisoned
@@ -84,6 +86,10 @@ impl Engine {
                 return Ok(());
             }
         }
+
+        // If it comes here, then account does not exist yet
+        // Create new account
+        // Inserting new account into accounts requires big lock for write
 
         // Limit lock time
         {
