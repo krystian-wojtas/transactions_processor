@@ -69,7 +69,7 @@ impl TryFrom<&str> for Currency {
             .ok_or_else(|| CurrencyError::CannotGetDecimalPart)?;
         let decimal = decimal
             .parse::<u64>()
-            .map_err(|err| CurrencyError::CannotParseDecimalPart(err))?;
+            .map_err(|err| CurrencyError::CannotParseDecimalPart { source: err })?;
 
         let fractional = parts.next().unwrap_or("0");
         if fractional.len() > PRECISION {
@@ -78,7 +78,7 @@ impl TryFrom<&str> for Currency {
         let fractional = String::from(fractional) + &"0".repeat(PRECISION - fractional.len());
         let fractional = fractional
             .parse::<u64>()
-            .map_err(|err| CurrencyError::CannotParseFractionalPart(err))?;
+            .map_err(|err| CurrencyError::CannotParseFractionalPart { source: err })?;
 
         Self::new(decimal, fractional)
     }
@@ -173,7 +173,7 @@ mod tests {
     fn cannot_parse_empty_string() {
         assert_matches!(
             Currency::try_from(""),
-            Err(CurrencyError::CannotParseDecimalPart(..))
+            Err(CurrencyError::CannotParseDecimalPart { .. })
         );
     }
 
@@ -208,7 +208,7 @@ mod tests {
     fn cannot_parse_words() {
         assert_matches!(
             Currency::try_from("Not a Number"),
-            Err(CurrencyError::CannotParseDecimalPart(..))
+            Err(CurrencyError::CannotParseDecimalPart { .. })
         );
     }
 
@@ -216,7 +216,7 @@ mod tests {
     fn cannot_parse_words_in_fraction_part() {
         assert_matches!(
             Currency::try_from("0.NaN"),
-            Err(CurrencyError::CannotParseFractionalPart(..))
+            Err(CurrencyError::CannotParseFractionalPart { .. })
         );
     }
 }

@@ -10,15 +10,17 @@ use thiserror::Error;
 pub enum CurrencyError {
     #[error("cannot find decimal part of amount before . character")]
     CannotGetDecimalPart,
-    #[error("cannot parse decimal part of amount: {0}")]
-    CannotParseDecimalPart(ParseIntError),
-    #[error("cannot parse fractional part of amount: {0}")]
-    CannotParseFractionalPart(ParseIntError),
+    #[error("cannot parse decimal part of amount: {source:?}")]
+    CannotParseDecimalPart { source: ParseIntError },
+    #[error("cannot parse fractional part of amount: {source:?}")]
+    CannotParseFractionalPart { source: ParseIntError },
     #[error("cannot parse fractional parst of amount as it is too long: {0}")]
     FractionalTooLong(String),
     #[error("cannot represent amount as value: {0} is out of supported range")]
     DecimalMultipliedByPrecisionOutOfRange(u64),
-    #[error("cannot represent amount as decimal: {0} and fractional: {1} are out of supported range")]
+    #[error(
+        "cannot represent amount as decimal: {0} and fractional: {1} are out of supported range"
+    )]
     DecimalAddedFractionalOutOfRange(u64, u64),
     #[error("cannot represent amount fractional: {0} is out of supported range")]
     FractionalOutOfRange(u64),
