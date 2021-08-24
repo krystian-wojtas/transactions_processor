@@ -11,10 +11,20 @@ use crate::api::currency::Currency;
 pub enum EngineError {
     #[error("cannot operate as client: {0} account is locked")]
     AccountLocked(u16),
-    #[error("cannot deposit: client: {0}, transaction: {1}, amount: {2}, reason: {3}")]
-    CannotDeposit(u16, u32, Currency, CurrencyError),
-    #[error("cannot withdrawal: client: {0}, transaction: {1}, amount: {2}, reason: {3}")]
-    CannotWithdrawal(u16, u32, Currency, CurrencyError),
+    #[error("cannot deposit: client: {client:?}, transaction: {tx:?}, amount: {amount:?}, reason: {source:?}")]
+    CannotDeposit {
+        client: u16,
+        tx: u32,
+        amount: Currency,
+        source: CurrencyError,
+    },
+    #[error("cannot withdrawal: client: {client:?}, transaction: {tx:?}, amount: {amount:?}, reason: {source:?}")]
+    CannotWithdrawal {
+        client: u16,
+        tx: u32,
+        amount: Currency,
+        source: CurrencyError,
+    },
     #[error("account for client: {0} does not exist")]
     AccountDoesNotExist(u16),
     #[error("deposit transaction should be uniqe but already exist: {0}")]
@@ -29,28 +39,28 @@ pub enum EngineError {
     DisputeCannotFindTransaction(u32),
     #[error("cannot find account to dispute: {0}")]
     DisputeCannotFindAccount(u16),
-    #[error("cannot substract available funds to dispute: {0}")]
-    DisputeCannotSubstractAvailable(CurrencyError),
-    #[error("cannot add held funds: {0} to dispute")]
-    DisputeCannotAddHeld(CurrencyError),
+    #[error("cannot substract available funds to dispute: {source:?}")]
+    DisputeCannotSubstractAvailable { source: CurrencyError },
+    #[error("cannot add held funds: {source:?} to dispute")]
+    DisputeCannotAddHeld { source: CurrencyError },
     #[error("cannot resolve transaction which was not disputed: {0}")]
     ResolveTransactionNotDisputed(u32),
     #[error("cannot find transaction to resolve: {0}")]
     ResolveCannotFindTransaction(u32),
     #[error("cannot find account to chargeback: {0}")]
     ResolveCannotFindAccount(u16),
-    #[error("cannot substract available funds: {0} to resolve")]
-    ResolveCannotAddAvailable(CurrencyError),
-    #[error("cannot add held funds: {0} to resolve")]
-    ResolveCannotSubstractHeld(CurrencyError),
+    #[error("cannot substract available funds: {source:?} to resolve")]
+    ResolveCannotAddAvailable { source: CurrencyError },
+    #[error("cannot add held funds: {source:?} to resolve")]
+    ResolveCannotSubstractHeld { source: CurrencyError },
     #[error("cannot chargeback transaction which was not disputed: {0}")]
     ChargebackTransactionNotDisputed(u32),
     #[error("cannot find transaction to chargeback: {0}")]
     ChargebackCannotFindTransaction(u32),
     #[error("cannot find account to chargeback: {0}")]
     ChargebackCannotFindAccount(u16),
-    #[error("cannot substract available funds: {0} to chargeback")]
-    ChargebackCannotAddAvailable(CurrencyError),
-    #[error("cannot add held funds: {0} to chargeback")]
-    ChargebackCannotSubstractHeld(CurrencyError),
+    #[error("cannot substract available funds: {source:?} to chargeback")]
+    ChargebackCannotAddAvailable { source: CurrencyError },
+    #[error("cannot add held funds: {source:?} to chargeback")]
+    ChargebackCannotSubstractHeld { source: CurrencyError },
 }

@@ -68,7 +68,12 @@ impl Engine {
                 account
                     .available
                     .add(amount)
-                    .map_err(|err| EngineError::CannotDeposit(client, tx, amount, err))?;
+                    .map_err(|source| EngineError::CannotDeposit {
+                        client,
+                        tx,
+                        amount,
+                        source,
+                    })?;
 
                 return Ok(());
             }
@@ -81,7 +86,12 @@ impl Engine {
             account
                 .available
                 .add(amount)
-                .map_err(|err| EngineError::CannotDeposit(client, tx, amount, err))?;
+                .map_err(|source| EngineError::CannotDeposit {
+                    client,
+                    tx,
+                    amount,
+                    source,
+                })?;
 
             // Panic if lock is poisoned
             let mut accounts_lock_write = self.accounts.write().unwrap();
@@ -140,10 +150,14 @@ impl Engine {
                         return Err(EngineError::AccountLocked(client));
                     }
 
-                    account
-                        .available
-                        .substract(amount)
-                        .map_err(|err| EngineError::CannotWithdrawal(client, tx, amount, err))
+                    account.available.substract(amount).map_err(|source| {
+                        EngineError::CannotWithdrawal {
+                            client,
+                            tx,
+                            amount,
+                            source,
+                        }
+                    })
                 }
                 None => Err(EngineError::AccountDoesNotExist(client)),
             }?;
@@ -190,11 +204,11 @@ impl Engine {
             account
                 .available
                 .substract(amount)
-                .map_err(|err| EngineError::DisputeCannotSubstractAvailable(err))?;
+                .map_err(|source| EngineError::DisputeCannotSubstractAvailable { source })?;
             account
                 .held
                 .add(amount)
-                .map_err(|err| EngineError::DisputeCannotAddHeld(err))?;
+                .map_err(|source| EngineError::DisputeCannotAddHeld { source })?;
         }
 
         // Limit lock time
@@ -245,11 +259,11 @@ impl Engine {
             account
                 .available
                 .add(amount)
-                .map_err(|err| EngineError::ResolveCannotAddAvailable(err))?;
+                .map_err(|source| EngineError::ResolveCannotAddAvailable { source })?;
             account
                 .held
                 .substract(amount)
-                .map_err(|err| EngineError::ResolveCannotSubstractHeld(err))?;
+                .map_err(|source| EngineError::ResolveCannotSubstractHeld { source })?;
         }
 
         // Limit lock time
@@ -299,7 +313,7 @@ impl Engine {
             account
                 .held
                 .substract(amount)
-                .map_err(|err| EngineError::ChargebackCannotSubstractHeld(err))?;
+                .map_err(|source| EngineError::ChargebackCannotSubstractHeld { source })?;
 
             account.locked = true;
         }
@@ -348,10 +362,12 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert_matches!(
             engine.deposit(1, 2, amount),
-            Err(EngineError::CannotDeposit(
-                ..,
-                CurrencyError::AddingOtherOutOfRange
-            ))
+            Err(EngineError::CannotDeposit {
+                client: _,
+                tx: _,
+                amount: _,
+                source: CurrencyError::AddingOtherOutOfRange
+            })
         );
     }
 
@@ -412,10 +428,12 @@ mod tests {
         assert!(engine.deposit(1, 1, amount_less).is_ok());
         assert_matches!(
             engine.withdrawal(1, 2, amount_more),
-            Err(EngineError::CannotWithdrawal(
-                ..,
-                CurrencyError::SubstractingOtherNegative
-            ))
+            Err(EngineError::CannotWithdrawal {
+                client: _,
+                tx: _,
+                amount: _,
+                source: CurrencyError::SubstractingOtherNegative
+            })
         );
     }
 
