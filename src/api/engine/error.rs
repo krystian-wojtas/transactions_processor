@@ -11,6 +11,14 @@ use crate::api::currency::Currency;
 pub enum EngineError {
     #[error("cannot operate as client: {0} account is locked")]
     AccountLocked(u16),
+    #[error("account for client: {0} does not exist")]
+    AccountDoesNotExist(u16),
+    #[error("cannot find account: {0}")]
+    CannotFindAccount(u16),
+    #[error("transaction should be uniqe but already exist: {0}")]
+    TransactionNotUnique(u32),
+    #[error("cannot find transaction: {0}")]
+    CannotFindTransaction(u32),
     #[error("cannot deposit: client: {client:?}, transaction: {tx:?}, amount: {amount:?}, reason: {source:?}")]
     CannotDeposit {
         client: u16,
@@ -18,6 +26,8 @@ pub enum EngineError {
         amount: Currency,
         source: CurrencyError,
     },
+    #[error("deposit transaction failed due to high concurency, try again: {0}")]
+    DepositTryAgain(u32),
     #[error("cannot withdrawal: client: {client:?}, transaction: {tx:?}, amount: {amount:?}, reason: {source:?}")]
     CannotWithdrawal {
         client: u16,
@@ -25,18 +35,8 @@ pub enum EngineError {
         amount: Currency,
         source: CurrencyError,
     },
-    #[error("account for client: {0} does not exist")]
-    AccountDoesNotExist(u16),
-    #[error("transaction should be uniqe but already exist: {0}")]
-    TransactionNotUnique(u32),
-    #[error("deposit transaction failed due to high concurency, try again: {0}")]
-    DepositTryAgain(u32),
     #[error("transaction already disputed: {0}")]
     DisputeAlreadyDisputed(u32),
-    #[error("cannot find transaction: {0}")]
-    CannotFindTransaction(u32),
-    #[error("cannot find account: {0}")]
-    CannotFindAccount(u16),
     #[error("cannot substract available funds to dispute: {source:?}")]
     DisputeCannotSubstractAvailable { source: CurrencyError },
     #[error("cannot add held funds: {source:?} to dispute")]
