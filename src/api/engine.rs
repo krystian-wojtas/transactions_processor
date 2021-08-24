@@ -46,7 +46,7 @@ impl Engine {
             // Then repating same transaction with same tx id will fail
             // Always should be used another unique tx id with each transaction
             if transactions_lock_write.insert(tx, amount).is_some() {
-                return Err(EngineError::DepositTransactionNotUnique(tx));
+                return Err(EngineError::TransactionNotUnique(tx));
             }
         }
 
@@ -130,7 +130,7 @@ impl Engine {
             // Then repating same transaction with same tx id will fail
             // Always should be used another unique tx id with each transaction
             if transactions_lock_write.insert(tx, amount).is_some() {
-                return Err(EngineError::WithdrawalTransactionNotUnique(tx));
+                return Err(EngineError::TransactionNotUnique(tx));
             }
         }
 
@@ -378,7 +378,7 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert_matches!(
             engine.deposit(1, 1, amount),
-            Err(EngineError::DepositTransactionNotUnique(..))
+            Err(EngineError::TransactionNotUnique(..))
         );
     }
 
@@ -389,7 +389,7 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert_matches!(
             engine.withdrawal(1, 1, amount),
-            Err(EngineError::WithdrawalTransactionNotUnique(..))
+            Err(EngineError::TransactionNotUnique(..))
         );
     }
 

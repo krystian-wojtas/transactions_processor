@@ -27,12 +27,10 @@ pub enum EngineError {
     },
     #[error("account for client: {0} does not exist")]
     AccountDoesNotExist(u16),
-    #[error("deposit transaction should be uniqe but already exist: {0}")]
-    DepositTransactionNotUnique(u32),
+    #[error("transaction should be uniqe but already exist: {0}")]
+    TransactionNotUnique(u32),
     #[error("deposit transaction failed due to high concurency, try again: {0}")]
     DepositTryAgain(u32),
-    #[error("withdrawal transaction should be uniqe but already exist: {0}")]
-    WithdrawalTransactionNotUnique(u32),
     #[error("transaction already disputed: {0}")]
     DisputeAlreadyDisputed(u32),
     #[error("cannot find transaction to dispute: {0}")]
