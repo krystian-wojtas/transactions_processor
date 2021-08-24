@@ -17,8 +17,6 @@ pub enum TransactionsProcessorError {
     CannotReadInputFileRecord { file: String, source: csv::Error },
     #[error("cannot deserialize csv record in input file: {file:?}, reason: {source:?}")]
     CannotDeserializeRecord { file: String, source: csv::Error },
-    #[error("cannot build currency value, reason: {value:?}")]
-    CannotBuildCurrencyValue { value: CurrencyError },
     #[error("input file misses mandatory amount value")]
     MissedMandatoryAmountInInputRecord,
     #[error("cannot parse input amount: {amount:?}, reason: {source:?}")]
