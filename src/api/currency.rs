@@ -97,6 +97,7 @@ impl fmt::Display for Currency {
 mod tests {
 
     use super::*;
+    use assert_matches::assert_matches;
 
     #[test]
     fn correct_min_value() {
@@ -115,11 +116,11 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_fractional_out_of_range() -> Result<(), ()> {
-        match Currency::new(0, BASE) {
-            Err(CurrencyError::FractionalOutOfRange(_)) => Ok(()),
-            _ => Err(()),
-        }
+    fn incorrect_fractional_out_of_range() {
+        assert_matches!(
+            Currency::new(0, BASE),
+            Err(CurrencyError::FractionalOutOfRange(..))
+        );
     }
 
     #[test]
@@ -137,13 +138,10 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_add_overflow() -> Result<(), ()> {
+    fn incorrect_add_overflow() {
         let mut first = Currency::max();
         let second = Currency::new(0, 1).unwrap();
-        match first.add(second) {
-            Err(CurrencyError::AddingOtherOutOfRange) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(first.add(second), Err(CurrencyError::AddingOtherOutOfRange));
     }
 
     #[test]
@@ -154,29 +152,29 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_substract_underflow() -> Result<(), ()> {
+    fn incorrect_substract_underflow() {
         let mut first = Currency::new(1, 1).unwrap();
         let second = Currency::new(2, 2).unwrap();
-        match first.substract(second) {
-            Err(CurrencyError::SubstractingOtherNegative) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            first.substract(second),
+            Err(CurrencyError::SubstractingOtherNegative)
+        );
     }
 
     #[test]
-    fn cannot_multiply_precision_out_of_range() -> Result<(), ()> {
-        match Currency::new(u64::MAX, 0) {
-            Err(CurrencyError::DecimalMultipliedByPrecisionOutOfRange(_)) => Ok(()),
-            _ => Err(()),
-        }
+    fn cannot_multiply_precision_out_of_range() {
+        assert_matches!(
+            Currency::new(u64::MAX, 0),
+            Err(CurrencyError::DecimalMultipliedByPrecisionOutOfRange(..))
+        );
     }
 
     #[test]
-    fn cannot_parse_empty_string() -> Result<(), ()> {
-        match Currency::try_from("") {
-            Err(CurrencyError::CannotParseDecimalPart(_)) => Ok(()),
-            _ => Err(()),
-        }
+    fn cannot_parse_empty_string() {
+        assert_matches!(
+            Currency::try_from(""),
+            Err(CurrencyError::CannotParseDecimalPart(..))
+        );
     }
 
     #[test]
@@ -191,12 +189,12 @@ mod tests {
     }
 
     #[test]
-    fn cannot_parse_too_long_fractional() -> Result<(), ()> {
+    fn cannot_parse_too_long_fractional() {
         let amount = String::from("0.") + &"1".repeat(PRECISION + 1);
-        match Currency::try_from(amount.as_str()) {
-            Err(CurrencyError::FractionalTooLong(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            Currency::try_from(amount.as_str()),
+            Err(CurrencyError::FractionalTooLong(..))
+        );
     }
 
     #[test]
@@ -207,18 +205,18 @@ mod tests {
     }
 
     #[test]
-    fn cannot_parse_words() -> Result<(), ()> {
-        match Currency::try_from("Not a Number") {
-            Err(CurrencyError::CannotParseDecimalPart(_)) => Ok(()),
-            _ => Err(()),
-        }
+    fn cannot_parse_words() {
+        assert_matches!(
+            Currency::try_from("Not a Number"),
+            Err(CurrencyError::CannotParseDecimalPart(..))
+        );
     }
 
     #[test]
-    fn cannot_parse_words_in_fraction_part() -> Result<(), ()> {
-        match Currency::try_from("0.NaN") {
-            Err(CurrencyError::CannotParseFractionalPart(_)) => Ok(()),
-            _ => Err(()),
-        }
+    fn cannot_parse_words_in_fraction_part() {
+        assert_matches!(
+            Currency::try_from("0.NaN"),
+            Err(CurrencyError::CannotParseFractionalPart(..))
+        );
     }
 }

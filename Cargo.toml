@@ -8,3 +8,6 @@ edition = "2018"
 [dependencies]
 csv = "*"
 serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+assert_matches = "1.3"

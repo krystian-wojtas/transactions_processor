@@ -324,6 +324,7 @@ mod tests {
 
     use super::*;
     use crate::api::currency::error::CurrencyError;
+    use assert_matches::assert_matches;
 
     #[test]
     fn correct_deposit() {
@@ -341,48 +342,49 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_2_deposits_for_one_account_out_of_range() -> Result<(), ()> {
+    fn incorrect_2_deposits_for_one_account_out_of_range() {
         let mut engine = Engine::new();
         let amount = Currency::max();
         assert!(engine.deposit(1, 1, amount).is_ok());
-        match engine.deposit(1, 2, amount) {
-            Err(EngineError::CannotDeposit(_, _, _, CurrencyError::AddingOtherOutOfRange)) => {
-                Ok(())
-            }
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.deposit(1, 2, amount),
+            Err(EngineError::CannotDeposit(
+                ..,
+                CurrencyError::AddingOtherOutOfRange
+            ))
+        );
     }
 
     #[test]
-    fn incorrect_2_deposits_with_same_tx() -> Result<(), ()> {
+    fn incorrect_2_deposits_with_same_tx() {
         let mut engine = Engine::new();
         let amount = Currency::new(1, 1).unwrap();
         assert!(engine.deposit(1, 1, amount).is_ok());
-        match engine.deposit(1, 1, amount) {
-            Err(EngineError::DepositTransactionNotUnique(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.deposit(1, 1, amount),
+            Err(EngineError::DepositTransactionNotUnique(..))
+        );
     }
 
     #[test]
-    fn incorrect_2_withdrawals_with_same_tx() -> Result<(), ()> {
+    fn incorrect_2_withdrawals_with_same_tx() {
         let mut engine = Engine::new();
         let amount = Currency::new(1, 1).unwrap();
         assert!(engine.deposit(1, 1, amount).is_ok());
-        match engine.withdrawal(1, 1, amount) {
-            Err(EngineError::WithdrawalTransactionNotUnique(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.withdrawal(1, 1, amount),
+            Err(EngineError::WithdrawalTransactionNotUnique(..))
+        );
     }
 
     #[test]
-    fn incorrect_withdrawal_from_unexisting_account() -> Result<(), ()> {
+    fn incorrect_withdrawal_from_unexisting_account() {
         let mut engine = Engine::new();
         let amount = Currency::new(1, 1).unwrap();
-        match engine.withdrawal(1, 1, amount) {
-            Err(EngineError::AccountDoesNotExist(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.withdrawal(1, 1, amount),
+            Err(EngineError::AccountDoesNotExist(..))
+        );
     }
 
     #[test]
@@ -403,20 +405,18 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_withdrawal_more_then_deposited() -> Result<(), ()> {
+    fn incorrect_withdrawal_more_then_deposited() {
         let mut engine = Engine::new();
         let amount_less = Currency::new(1, 1).unwrap();
         let amount_more = Currency::new(2, 2).unwrap();
         assert!(engine.deposit(1, 1, amount_less).is_ok());
-        match engine.withdrawal(1, 2, amount_more) {
+        assert_matches!(
+            engine.withdrawal(1, 2, amount_more),
             Err(EngineError::CannotWithdrawal(
-                _,
-                _,
-                _,
-                CurrencyError::SubstractingOtherNegative,
-            )) => Ok(()),
-            _ => Err(()),
-        }
+                ..,
+                CurrencyError::SubstractingOtherNegative
+            ))
+        );
     }
 
     #[test]
@@ -428,15 +428,15 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_dispute_twice_some_tx() -> Result<(), ()> {
+    fn incorrect_dispute_twice_some_tx() {
         let mut engine = Engine::new();
         let amount = Currency::new(1, 1).unwrap();
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert!(engine.dispute(1, 1).is_ok());
-        match engine.dispute(1, 1) {
-            Err(EngineError::DisputeAlreadyDisputed(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.dispute(1, 1),
+            Err(EngineError::DisputeAlreadyDisputed(..))
+        );
     }
 
     #[test]
@@ -449,23 +449,23 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_resolve_unexisting_tx() -> Result<(), ()> {
+    fn incorrect_resolve_unexisting_tx() {
         let mut engine = Engine::new();
-        match engine.resolve(1, 1) {
-            Err(EngineError::ResolveCannotFindTransaction(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.resolve(1, 1),
+            Err(EngineError::ResolveCannotFindTransaction(..))
+        );
     }
 
     #[test]
-    fn incorrect_resolve_not_disputed_tx() -> Result<(), ()> {
+    fn incorrect_resolve_not_disputed_tx() {
         let mut engine = Engine::new();
         let amount = Currency::new(1, 1).unwrap();
         assert!(engine.deposit(1, 1, amount).is_ok());
-        match engine.resolve(1, 1) {
-            Err(EngineError::ResolveTransactionNotDisputed(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.resolve(1, 1),
+            Err(EngineError::ResolveTransactionNotDisputed(..))
+        );
     }
 
     #[test]
@@ -478,35 +478,35 @@ mod tests {
     }
 
     #[test]
-    fn incorrect_chargeback_unexisting_tx() -> Result<(), ()> {
+    fn incorrect_chargeback_unexisting_tx() {
         let mut engine = Engine::new();
-        match engine.chargeback(1, 1) {
-            Err(EngineError::ChargebackCannotFindTransaction(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.chargeback(1, 1),
+            Err(EngineError::ChargebackCannotFindTransaction(..))
+        );
     }
 
     #[test]
-    fn incorrect_chargeback_not_disputed_tx() -> Result<(), ()> {
+    fn incorrect_chargeback_not_disputed_tx() {
         let mut engine = Engine::new();
         let amount = Currency::new(1, 1).unwrap();
         assert!(engine.deposit(1, 1, amount).is_ok());
-        match engine.chargeback(1, 1) {
-            Err(EngineError::ChargebackTransactionNotDisputed(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.chargeback(1, 1),
+            Err(EngineError::ChargebackTransactionNotDisputed(..))
+        );
     }
 
     #[test]
-    fn incorrect_deposit_on_locked_account_tx() -> Result<(), ()> {
+    fn incorrect_deposit_on_locked_account_tx() {
         let mut engine = Engine::new();
         let amount = Currency::new(1, 1).unwrap();
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert!(engine.dispute(1, 1).is_ok());
         assert!(engine.chargeback(1, 1).is_ok());
-        match engine.deposit(1, 2, amount) {
-            Err(EngineError::AccountLocked(_)) => Ok(()),
-            _ => Err(()),
-        }
+        assert_matches!(
+            engine.deposit(1, 2, amount),
+            Err(EngineError::AccountLocked(..))
+        );
     }
 }
