@@ -41,6 +41,10 @@ impl Engine {
             // If not, then getting rid of it would save memory
             //
             // Should it check if transaction is unique?
+            //
+            // If further deposit fails, then transaction is going to be be stored anyway
+            // Then repating same transaction with same tx id will fail
+            // Always should be used another unique tx id with each transaction
             if transactions_lock_write.insert(tx, amount).is_some() {
                 return Err(EngineError::DepositTransactionNotUnique(tx));
             }
@@ -111,6 +115,10 @@ impl Engine {
             let mut transactions_lock_write = self.transactions.write().unwrap();
 
             // Should it check if transaction is unique?
+            //
+            // If further deposit fails, then transaction is going to be be stored anyway
+            // Then repating same transaction with same tx id will fail
+            // Always should be used another unique tx id with each transaction
             if transactions_lock_write.insert(tx, amount).is_some() {
                 return Err(EngineError::WithdrawalTransactionNotUnique(tx));
             }
