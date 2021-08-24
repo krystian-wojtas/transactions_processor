@@ -19,12 +19,18 @@ pub fn process(file: &str) -> Result<(), TransactionsProcessorError> {
     let mut rdr = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
         .from_path(file)
-        .map_err(|err| TransactionsProcessorError::CannotReadInputFile(file.to_string(), err))?;
+        .map_err(|err| TransactionsProcessorError::CannotReadInputFile {
+            file: file.to_string(),
+            source: err,
+        })?;
 
     // Read first row which is supposed csv headers
     let mut raw_record = csv::ByteRecord::new();
     let headers = rdr.byte_headers().map_err(|err| {
-        TransactionsProcessorError::CannotReadInputFileHeaders(file.to_string(), err)
+        TransactionsProcessorError::CannotReadInputFileHeaders {
+            file: file.to_string(),
+            source: err,
+        }
     })?;
     let headers = headers.clone();
 
@@ -33,8 +39,10 @@ pub fn process(file: &str) -> Result<(), TransactionsProcessorError> {
         match rdr.read_byte_record(&mut raw_record) {
             // Encountered error during reading record
             Err(err) => {
-                let nested_error =
-                    TransactionsProcessorError::CannotReadInputFileRecord(file.to_string(), err);
+                let nested_error = TransactionsProcessorError::CannotReadInputFileRecord {
+                    file: file.to_string(),
+                    source: err,
+                };
                 // Finish processing with fatal error
                 return Err(nested_error);
                 // Or only print warning if error is not considered fatal
@@ -67,7 +75,10 @@ fn process_record(
 ) -> Result<(), TransactionsProcessorError> {
     // Try to deserialize record into assumed structure
     let transaction: Transaction = raw_record.deserialize(Some(&headers)).map_err(|err| {
-        TransactionsProcessorError::CannotDeserializeRecord(file.to_string(), err)
+        TransactionsProcessorError::CannotDeserializeRecord {
+            file: file.to_string(),
+            source: err,
+        }
     })?;
 
     // Dispatach transaction into proper engine call
@@ -82,10 +93,10 @@ fn get_and_parse_amount(amount: Option<&str>) -> Result<Currency, TransactionsPr
         amount.ok_or_else(|| TransactionsProcessorError::MissedMandatoryAmountInInputRecord)?;
     // Parse input string into Currency type
     let amount = Currency::try_from(amount).map_err(|err| {
-        TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord(
-            amount.to_string(),
-            err,
-        )
+        TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord {
+            amount: amount.to_string(),
+            source: err,
+        }
     })?;
 
     Ok(amount)
