@@ -35,24 +35,20 @@ pub enum EngineError {
     DisputeAlreadyDisputed(u32),
     #[error("cannot find transaction: {0}")]
     CannotFindTransaction(u32),
-    #[error("cannot find account to dispute: {0}")]
-    DisputeCannotFindAccount(u16),
+    #[error("cannot find account: {0}")]
+    CannotFindAccount(u16),
     #[error("cannot substract available funds to dispute: {source:?}")]
     DisputeCannotSubstractAvailable { source: CurrencyError },
     #[error("cannot add held funds: {source:?} to dispute")]
     DisputeCannotAddHeld { source: CurrencyError },
     #[error("cannot resolve transaction which was not disputed: {0}")]
     ResolveTransactionNotDisputed(u32),
-    #[error("cannot find account to chargeback: {0}")]
-    ResolveCannotFindAccount(u16),
     #[error("cannot substract available funds: {source:?} to resolve")]
     ResolveCannotAddAvailable { source: CurrencyError },
     #[error("cannot add held funds: {source:?} to resolve")]
     ResolveCannotSubstractHeld { source: CurrencyError },
     #[error("cannot chargeback transaction which was not disputed: {0}")]
     ChargebackTransactionNotDisputed(u32),
-    #[error("cannot find account to chargeback: {0}")]
-    ChargebackCannotFindAccount(u16),
     #[error("cannot add held funds: {source:?} to chargeback")]
     ChargebackCannotSubstractHeld { source: CurrencyError },
 }

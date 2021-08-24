@@ -196,7 +196,7 @@ impl Engine {
             let accounts_lock_read = self.accounts.read().unwrap();
             let mutex = accounts_lock_read
                 .get(&client)
-                .ok_or_else(|| EngineError::DisputeCannotFindAccount(client))?;
+                .ok_or_else(|| EngineError::CannotFindAccount(client))?;
 
             // Panic if lock is poisoned
             let mut account = mutex.lock().unwrap();
@@ -251,7 +251,7 @@ impl Engine {
             let accounts_lock_read = self.accounts.read().unwrap();
             let mutex = accounts_lock_read
                 .get(&client)
-                .ok_or_else(|| EngineError::ResolveCannotFindAccount(client))?;
+                .ok_or_else(|| EngineError::CannotFindAccount(client))?;
 
             // Panic if lock is poisoned
             let mut account = mutex.lock().unwrap();
@@ -306,7 +306,7 @@ impl Engine {
             let accounts_lock_read = self.accounts.read().unwrap();
             let mutex = accounts_lock_read
                 .get(&client)
-                .ok_or_else(|| EngineError::ChargebackCannotFindAccount(client))?;
+                .ok_or_else(|| EngineError::CannotFindAccount(client))?;
 
             let mut account = mutex.lock().unwrap();
 
