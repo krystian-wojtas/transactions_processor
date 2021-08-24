@@ -30,7 +30,7 @@ impl Engine {
         }
     }
 
-    pub fn deposit(&mut self, client: u16, tx: u32, amount: Currency) -> Result<(), EngineError> {
+    fn record_transaction(&mut self, tx: u32, amount: Currency) -> Result<(), EngineError> {
         // Limit lock time
         {
             // Panic if lock is poisoned
@@ -49,6 +49,12 @@ impl Engine {
                 return Err(EngineError::TransactionNotUnique(tx));
             }
         }
+
+        Ok(())
+    }
+
+    pub fn deposit(&mut self, client: u16, tx: u32, amount: Currency) -> Result<(), EngineError> {
+        self.record_transaction(tx, amount)?;
 
         // Limit lock time
         {
@@ -119,20 +125,7 @@ impl Engine {
         tx: u32,
         amount: Currency,
     ) -> Result<(), EngineError> {
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let mut transactions_lock_write = self.transactions.write().unwrap();
-
-            // Should it check if transaction is unique?
-            //
-            // If further deposit fails, then transaction is going to be be stored anyway
-            // Then repating same transaction with same tx id will fail
-            // Always should be used another unique tx id with each transaction
-            if transactions_lock_write.insert(tx, amount).is_some() {
-                return Err(EngineError::TransactionNotUnique(tx));
-            }
-        }
+        self.record_transaction(tx, amount)?;
 
         // Section with accounts locks
         {
