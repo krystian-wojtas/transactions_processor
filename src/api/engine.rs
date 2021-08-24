@@ -30,7 +30,7 @@ impl Engine {
         }
     }
 
-    pub fn deposit(&mut self, client: u16, tx: u32, amount: Currency) -> Result<(), EngineError> {
+    fn record_transaction(&mut self, tx: u32, amount: Currency) -> Result<(), EngineError> {
         // Limit lock time
         {
             // Panic if lock is poisoned
@@ -46,9 +46,17 @@ impl Engine {
             // Then repating same transaction with same tx id will fail
             // Always should be used another unique tx id with each transaction
             if transactions_lock_write.insert(tx, amount).is_some() {
-                return Err(EngineError::DepositTransactionNotUnique(tx));
+                return Err(EngineError::TransactionNotUnique(tx));
             }
         }
+
+        Ok(())
+    }
+
+    pub fn deposit(&mut self, client: u16, tx: u32, amount: Currency) -> Result<(), EngineError> {
+        self.record_transaction(tx, amount)?;
+
+        // Try to deposit assuming that account already exist
 
         // Limit lock time
         {
@@ -78,6 +86,10 @@ impl Engine {
                 return Ok(());
             }
         }
+
+        // If it comes here, then account does not exist yet
+        // Create new account
+        // Inserting new account into accounts requires big lock for write
 
         // Limit lock time
         {
@@ -119,20 +131,7 @@ impl Engine {
         tx: u32,
         amount: Currency,
     ) -> Result<(), EngineError> {
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let mut transactions_lock_write = self.transactions.write().unwrap();
-
-            // Should it check if transaction is unique?
-            //
-            // If further deposit fails, then transaction is going to be be stored anyway
-            // Then repating same transaction with same tx id will fail
-            // Always should be used another unique tx id with each transaction
-            if transactions_lock_write.insert(tx, amount).is_some() {
-                return Err(EngineError::WithdrawalTransactionNotUnique(tx));
-            }
-        }
+        self.record_transaction(tx, amount)?;
 
         // Section with accounts locks
         {
@@ -166,6 +165,23 @@ impl Engine {
         Ok(())
     }
 
+    fn get_transaction_amount(&self, tx: u32) -> Result<Currency, EngineError> {
+        let amount;
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let transactions_lock_read = self.transactions.read().unwrap();
+
+            let amount_ref = transactions_lock_read
+                .get(&tx)
+                .ok_or_else(|| EngineError::CannotFindTransaction(tx))?;
+
+            amount = amount_ref.clone();
+        }
+
+        Ok(amount)
+    }
+
     pub fn dispute(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
         // Limit lock time
         {
@@ -177,18 +193,7 @@ impl Engine {
             }
         }
 
-        let amount;
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let transactions_lock_read = self.transactions.read().unwrap();
-
-            let amount_ref = transactions_lock_read
-                .get(&tx)
-                .ok_or_else(|| EngineError::DisputeCannotFindTransaction(tx))?;
-
-            amount = amount_ref.clone();
-        }
+        let amount = self.get_transaction_amount(tx)?;
 
         // Limit lock time
         {
@@ -196,7 +201,7 @@ impl Engine {
             let accounts_lock_read = self.accounts.read().unwrap();
             let mutex = accounts_lock_read
                 .get(&client)
-                .ok_or_else(|| EngineError::DisputeCannotFindAccount(client))?;
+                .ok_or_else(|| EngineError::CannotFindAccount(client))?;
 
             // Panic if lock is poisoned
             let mut account = mutex.lock().unwrap();
@@ -221,29 +226,34 @@ impl Engine {
         Ok(())
     }
 
-    pub fn resolve(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
-        let amount;
+    fn transaction_remove_from_disputed_list(&mut self, tx: u32) {
         // Limit lock time
         {
             // Panic if lock is poisoned
-            let transactions_lock_read = self.transactions.read().unwrap();
-
-            let amount_ref = transactions_lock_read
-                .get(&tx)
-                .ok_or_else(|| EngineError::ResolveCannotFindTransaction(tx))?;
-
-            amount = amount_ref.clone();
+            let mut transactions_disputed_lock_write = self.transactions_disputed.write().unwrap();
+            transactions_disputed_lock_write.remove(&tx);
         }
+    }
 
+    fn ensure_transaction_is_disputed(&self, tx: u32) -> Result<(), EngineError> {
         // Limit lock time
         {
             // Panic if lock is poisoned
             let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
 
             if !transactions_disputed_lock_read.contains(&tx) {
-                return Err(EngineError::ResolveTransactionNotDisputed(tx));
+                return Err(EngineError::TransactionNotDisputed(tx));
             }
         }
+
+        Ok(())
+
+    }
+
+    pub fn resolve(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
+        let amount = self.get_transaction_amount(tx)?;
+
+        self.ensure_transaction_is_disputed(tx)?;
 
         // Limit lock time
         {
@@ -251,7 +261,7 @@ impl Engine {
             let accounts_lock_read = self.accounts.read().unwrap();
             let mutex = accounts_lock_read
                 .get(&client)
-                .ok_or_else(|| EngineError::ResolveCannotFindAccount(client))?;
+                .ok_or_else(|| EngineError::CannotFindAccount(client))?;
 
             // Panic if lock is poisoned
             let mut account = mutex.lock().unwrap();
@@ -266,39 +276,15 @@ impl Engine {
                 .map_err(|source| EngineError::ResolveCannotSubstractHeld { source })?;
         }
 
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let mut transactions_disputed_lock_write = self.transactions_disputed.write().unwrap();
-            transactions_disputed_lock_write.remove(&tx);
-        }
+        self.transaction_remove_from_disputed_list(tx);
 
         Ok(())
     }
 
     pub fn chargeback(&mut self, client: u16, tx: u32) -> Result<(), EngineError> {
-        let amount;
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let transactions_lock_read = self.transactions.read().unwrap();
+        let amount = self.get_transaction_amount(tx)?;
 
-            let amount_ref = transactions_lock_read
-                .get(&tx)
-                .ok_or_else(|| EngineError::ChargebackCannotFindTransaction(tx))?;
-
-            amount = amount_ref.clone();
-        }
-
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let transactions_disputed_lock_read = self.transactions_disputed.read().unwrap();
-
-            if !transactions_disputed_lock_read.contains(&tx) {
-                return Err(EngineError::ChargebackTransactionNotDisputed(tx));
-            }
-        }
+        self.ensure_transaction_is_disputed(tx)?;
 
         // Limit lock time
         {
@@ -306,7 +292,7 @@ impl Engine {
             let accounts_lock_read = self.accounts.read().unwrap();
             let mutex = accounts_lock_read
                 .get(&client)
-                .ok_or_else(|| EngineError::ChargebackCannotFindAccount(client))?;
+                .ok_or_else(|| EngineError::CannotFindAccount(client))?;
 
             let mut account = mutex.lock().unwrap();
 
@@ -318,12 +304,7 @@ impl Engine {
             account.locked = true;
         }
 
-        // Limit lock time
-        {
-            // Panic if lock is poisoned
-            let mut transactions_disputed_lock_write = self.transactions_disputed.write().unwrap();
-            transactions_disputed_lock_write.remove(&tx);
-        }
+        self.transaction_remove_from_disputed_list(tx);
 
         Ok(())
     }
@@ -378,7 +359,7 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert_matches!(
             engine.deposit(1, 1, amount),
-            Err(EngineError::DepositTransactionNotUnique(..))
+            Err(EngineError::TransactionNotUnique(..))
         );
     }
 
@@ -389,7 +370,7 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert_matches!(
             engine.withdrawal(1, 1, amount),
-            Err(EngineError::WithdrawalTransactionNotUnique(..))
+            Err(EngineError::TransactionNotUnique(..))
         );
     }
 
@@ -471,7 +452,7 @@ mod tests {
         let mut engine = Engine::new();
         assert_matches!(
             engine.resolve(1, 1),
-            Err(EngineError::ResolveCannotFindTransaction(..))
+            Err(EngineError::CannotFindTransaction(..))
         );
     }
 
@@ -482,7 +463,7 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert_matches!(
             engine.resolve(1, 1),
-            Err(EngineError::ResolveTransactionNotDisputed(..))
+            Err(EngineError::TransactionNotDisputed(..))
         );
     }
 
@@ -500,7 +481,7 @@ mod tests {
         let mut engine = Engine::new();
         assert_matches!(
             engine.chargeback(1, 1),
-            Err(EngineError::ChargebackCannotFindTransaction(..))
+            Err(EngineError::CannotFindTransaction(..))
         );
     }
 
@@ -511,7 +492,7 @@ mod tests {
         assert!(engine.deposit(1, 1, amount).is_ok());
         assert_matches!(
             engine.chargeback(1, 1),
-            Err(EngineError::ChargebackTransactionNotDisputed(..))
+            Err(EngineError::TransactionNotDisputed(..))
         );
     }
 
