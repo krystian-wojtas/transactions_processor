@@ -185,7 +185,7 @@ impl Engine {
 
             let amount_ref = transactions_lock_read
                 .get(&tx)
-                .ok_or_else(|| EngineError::DisputeCannotFindTransaction(tx))?;
+                .ok_or_else(|| EngineError::CannotFindTransaction(tx))?;
 
             amount = amount_ref.clone();
         }
@@ -230,7 +230,7 @@ impl Engine {
 
             let amount_ref = transactions_lock_read
                 .get(&tx)
-                .ok_or_else(|| EngineError::ResolveCannotFindTransaction(tx))?;
+                .ok_or_else(|| EngineError::CannotFindTransaction(tx))?;
 
             amount = amount_ref.clone();
         }
@@ -285,7 +285,7 @@ impl Engine {
 
             let amount_ref = transactions_lock_read
                 .get(&tx)
-                .ok_or_else(|| EngineError::ChargebackCannotFindTransaction(tx))?;
+                .ok_or_else(|| EngineError::CannotFindTransaction(tx))?;
 
             amount = amount_ref.clone();
         }
@@ -471,7 +471,7 @@ mod tests {
         let mut engine = Engine::new();
         assert_matches!(
             engine.resolve(1, 1),
-            Err(EngineError::ResolveCannotFindTransaction(..))
+            Err(EngineError::CannotFindTransaction(..))
         );
     }
 
@@ -500,7 +500,7 @@ mod tests {
         let mut engine = Engine::new();
         assert_matches!(
             engine.chargeback(1, 1),
-            Err(EngineError::ChargebackCannotFindTransaction(..))
+            Err(EngineError::CannotFindTransaction(..))
         );
     }
 

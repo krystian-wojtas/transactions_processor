@@ -33,8 +33,8 @@ pub enum EngineError {
     DepositTryAgain(u32),
     #[error("transaction already disputed: {0}")]
     DisputeAlreadyDisputed(u32),
-    #[error("cannot find transaction to dispute: {0}")]
-    DisputeCannotFindTransaction(u32),
+    #[error("cannot find transaction: {0}")]
+    CannotFindTransaction(u32),
     #[error("cannot find account to dispute: {0}")]
     DisputeCannotFindAccount(u16),
     #[error("cannot substract available funds to dispute: {source:?}")]
@@ -43,8 +43,6 @@ pub enum EngineError {
     DisputeCannotAddHeld { source: CurrencyError },
     #[error("cannot resolve transaction which was not disputed: {0}")]
     ResolveTransactionNotDisputed(u32),
-    #[error("cannot find transaction to resolve: {0}")]
-    ResolveCannotFindTransaction(u32),
     #[error("cannot find account to chargeback: {0}")]
     ResolveCannotFindAccount(u16),
     #[error("cannot substract available funds: {source:?} to resolve")]
@@ -53,8 +51,6 @@ pub enum EngineError {
     ResolveCannotSubstractHeld { source: CurrencyError },
     #[error("cannot chargeback transaction which was not disputed: {0}")]
     ChargebackTransactionNotDisputed(u32),
-    #[error("cannot find transaction to chargeback: {0}")]
-    ChargebackCannotFindTransaction(u32),
     #[error("cannot find account to chargeback: {0}")]
     ChargebackCannotFindAccount(u16),
     #[error("cannot add held funds: {source:?} to chargeback")]
