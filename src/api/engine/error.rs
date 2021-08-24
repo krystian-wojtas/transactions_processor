@@ -1,127 +1,64 @@
 //! Common API related to errors in amount
 
-// Standard modules paths
-use std::error;
-use std::fmt;
+// External paths
+use thiserror::Error;
 
 // Crate paths
 use crate::api::currency::error::CurrencyError;
 use crate::api::currency::Currency;
 
-#[derive(Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum EngineError {
+    #[error("cannot operate as client: {0} account is locked")]
     AccountLocked(u16),
-    CannotDeposit(u16, u32, Currency, CurrencyError),
-    CannotWithdrawal(u16, u32, Currency, CurrencyError),
+    #[error("cannot deposit: client: {client:?}, transaction: {tx:?}, amount: {amount:?}, reason: {source:?}")]
+    CannotDeposit {
+        client: u16,
+        tx: u32,
+        amount: Currency,
+        source: CurrencyError,
+    },
+    #[error("cannot withdrawal: client: {client:?}, transaction: {tx:?}, amount: {amount:?}, reason: {source:?}")]
+    CannotWithdrawal {
+        client: u16,
+        tx: u32,
+        amount: Currency,
+        source: CurrencyError,
+    },
+    #[error("account for client: {0} does not exist")]
     AccountDoesNotExist(u16),
+    #[error("deposit transaction should be uniqe but already exist: {0}")]
     DepositTransactionNotUnique(u32),
+    #[error("deposit transaction failed due to high concurency, try again: {0}")]
     DepositTryAgain(u32),
+    #[error("withdrawal transaction should be uniqe but already exist: {0}")]
     WithdrawalTransactionNotUnique(u32),
+    #[error("transaction already disputed: {0}")]
     DisputeAlreadyDisputed(u32),
+    #[error("cannot find transaction to dispute: {0}")]
     DisputeCannotFindTransaction(u32),
+    #[error("cannot find account to dispute: {0}")]
     DisputeCannotFindAccount(u16),
-    DisputeCannotSubstractAvailable(CurrencyError),
-    DisputeCannotAddHeld(CurrencyError),
+    #[error("cannot substract available funds to dispute: {source:?}")]
+    DisputeCannotSubstractAvailable { source: CurrencyError },
+    #[error("cannot add held funds: {source:?} to dispute")]
+    DisputeCannotAddHeld { source: CurrencyError },
+    #[error("cannot resolve transaction which was not disputed: {0}")]
     ResolveTransactionNotDisputed(u32),
+    #[error("cannot find transaction to resolve: {0}")]
     ResolveCannotFindTransaction(u32),
+    #[error("cannot find account to chargeback: {0}")]
     ResolveCannotFindAccount(u16),
-    ResolveCannotAddAvailable(CurrencyError),
-    ResolveCannotSubstractHeld(CurrencyError),
+    #[error("cannot substract available funds: {source:?} to resolve")]
+    ResolveCannotAddAvailable { source: CurrencyError },
+    #[error("cannot add held funds: {source:?} to resolve")]
+    ResolveCannotSubstractHeld { source: CurrencyError },
+    #[error("cannot chargeback transaction which was not disputed: {0}")]
     ChargebackTransactionNotDisputed(u32),
+    #[error("cannot find transaction to chargeback: {0}")]
     ChargebackCannotFindTransaction(u32),
+    #[error("cannot find account to chargeback: {0}")]
     ChargebackCannotFindAccount(u16),
-    ChargebackCannotAddAvailable(CurrencyError),
-    ChargebackCannotSubstractHeld(CurrencyError),
-}
-
-// Add empty Error trait
-impl error::Error for EngineError {}
-
-fn desc(amount_error: &EngineError) -> String {
-    use self::EngineError::*;
-    match *amount_error {
-        AccountLocked(client) => format!("cannot operate as client: {} account is locked", client),
-        CannotDeposit(client, tx, amount, ref err) => format!(
-            "cannot deposit: client: {}, transaction: {}, amount: {}, reason: {}",
-            client, tx, amount, err
-        ),
-        CannotWithdrawal(client, tx, amount, ref err) => format!(
-            "cannot withdrawal: client: {}, transaction: {}, amount: {}, reason: {}",
-            client, tx, amount, err
-        ),
-        AccountDoesNotExist(client) => format!("account for client: {} does not exist", client),
-        DepositTransactionNotUnique(tx) => {
-            format!(
-                "deposit transaction should be uniqe but already exist: {}",
-                tx
-            )
-        }
-        DepositTryAgain(tx) => {
-            format!(
-                "deposit transaction failed due to high concurency, try again: {}",
-                tx
-            )
-        }
-        WithdrawalTransactionNotUnique(tx) => {
-            format!(
-                "withdrawal transaction should be uniqe but already exist: {}",
-                tx
-            )
-        }
-        DisputeAlreadyDisputed(tx) => {
-            format!("transaction already disputed: {}", tx)
-        }
-        DisputeCannotFindTransaction(tx) => {
-            format!("cannot find transaction to dispute: {}", tx)
-        }
-        DisputeCannotFindAccount(tx) => {
-            format!("cannot find account to dispute: {}", tx)
-        }
-        DisputeCannotSubstractAvailable(ref err) => {
-            format!("cannot substract available funds to dispute: {}", err)
-        }
-        DisputeCannotAddHeld(ref err) => {
-            format!("cannot add held funds: {} to dispute", err)
-        }
-        ResolveTransactionNotDisputed(tx) => {
-            format!("cannot resolve transaction which was not disputed: {}", tx)
-        }
-        ResolveCannotFindTransaction(tx) => {
-            format!("cannot find transaction to resolve: {}", tx)
-        }
-        ResolveCannotFindAccount(tx) => {
-            format!("cannot find account to resolve: {}", tx)
-        }
-        ResolveCannotAddAvailable(ref err) => {
-            format!("cannot substract available funds: {} to resolve", err)
-        }
-        ResolveCannotSubstractHeld(ref err) => {
-            format!("cannot add held funds: {} to resolve", err)
-        }
-        ChargebackTransactionNotDisputed(tx) => {
-            format!(
-                "cannot chargeback transaction which was not disputed: {}",
-                tx
-            )
-        }
-        ChargebackCannotFindTransaction(tx) => {
-            format!("cannot find transaction to chargeback: {}", tx)
-        }
-        ChargebackCannotFindAccount(tx) => {
-            format!("cannot find account to chargeback: {}", tx)
-        }
-        ChargebackCannotAddAvailable(ref err) => {
-            format!("cannot substract available funds: {} to chargeback", err)
-        }
-        ChargebackCannotSubstractHeld(ref err) => {
-            format!("cannot add held funds: {} to chargeback", err)
-        }
-    }
-}
-
-// Implement Display trait
-impl fmt::Display for EngineError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", desc(&self))
-    }
+    #[error("cannot add held funds: {source:?} to chargeback")]
+    ChargebackCannotSubstractHeld { source: CurrencyError },
 }

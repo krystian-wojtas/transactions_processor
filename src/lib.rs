@@ -8,10 +8,14 @@ use api::error::TransactionsProcessorError;
 use api::transactions::Transaction;
 use api::transactions::Type;
 
+// External paths
+use anyhow::anyhow;
+use anyhow::Result;
+
 // Crate modules
 pub mod api;
 
-pub fn process(file: &str) -> Result<(), TransactionsProcessorError> {
+pub fn process(file: &str) -> anyhow::Result<()> {
     // Create transaction engine
     let mut engine = Engine::new();
 
@@ -19,12 +23,18 @@ pub fn process(file: &str) -> Result<(), TransactionsProcessorError> {
     let mut rdr = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
         .from_path(file)
-        .map_err(|err| TransactionsProcessorError::CannotReadInputFile(file.to_string(), err))?;
+        .map_err(|err| TransactionsProcessorError::CannotReadInputFile {
+            file: file.to_string(),
+            source: err,
+        })?;
 
     // Read first row which is supposed csv headers
     let mut raw_record = csv::ByteRecord::new();
     let headers = rdr.byte_headers().map_err(|err| {
-        TransactionsProcessorError::CannotReadInputFileHeaders(file.to_string(), err)
+        TransactionsProcessorError::CannotReadInputFileHeaders {
+            file: file.to_string(),
+            source: err,
+        }
     })?;
     let headers = headers.clone();
 
@@ -33,10 +43,12 @@ pub fn process(file: &str) -> Result<(), TransactionsProcessorError> {
         match rdr.read_byte_record(&mut raw_record) {
             // Encountered error during reading record
             Err(err) => {
-                let nested_error =
-                    TransactionsProcessorError::CannotReadInputFileRecord(file.to_string(), err);
+                let nested_error = TransactionsProcessorError::CannotReadInputFileRecord {
+                    file: file.to_string(),
+                    source: err,
+                };
                 // Finish processing with fatal error
-                return Err(nested_error);
+                return Err(anyhow!(nested_error));
                 // Or only print warning if error is not considered fatal
                 // and continue processing any following records
                 // print_record_warning(&raw_record, nested_error);
@@ -67,7 +79,10 @@ fn process_record(
 ) -> Result<(), TransactionsProcessorError> {
     // Try to deserialize record into assumed structure
     let transaction: Transaction = raw_record.deserialize(Some(&headers)).map_err(|err| {
-        TransactionsProcessorError::CannotDeserializeRecord(file.to_string(), err)
+        TransactionsProcessorError::CannotDeserializeRecord {
+            file: file.to_string(),
+            source: err,
+        }
     })?;
 
     // Dispatach transaction into proper engine call
@@ -82,10 +97,10 @@ fn get_and_parse_amount(amount: Option<&str>) -> Result<Currency, TransactionsPr
         amount.ok_or_else(|| TransactionsProcessorError::MissedMandatoryAmountInInputRecord)?;
     // Parse input string into Currency type
     let amount = Currency::try_from(amount).map_err(|err| {
-        TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord(
-            amount.to_string(),
-            err,
-        )
+        TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord {
+            amount: amount.to_string(),
+            source: err,
+        }
     })?;
 
     Ok(amount)
@@ -148,7 +163,7 @@ fn print_accounts(engine: &Engine) {
             // To refuse operations which exceed total? (Then implement total field in Account)
             // Or to print inacurate total value and warning during structure dump?
             total.add(account.held).unwrap_or_else(|err| {
-                eprintln!("WARNING: total is out of range: {}", err);
+                eprintln!("WARNING: total is out of range: {:?}", err);
             });
 
             // Print data
@@ -167,13 +182,13 @@ fn print_record_warning(
     match optional_position {
         Some(position) => {
             eprintln!(
-                "WARNING: failed to process record:\nline: {}\nreason: {}",
+                "WARNING: failed to process record:\nline: {}\nreason: {:?}",
                 position.line(),
                 err
             );
         }
         None => {
-            eprintln!("WARNING: ignored record, reason: {}", err);
+            eprintln!("WARNING: ignored record, reason: {:?}", err);
         }
     };
 }

@@ -1,68 +1,35 @@
 //! Common API related to errors in amount
 
-// Standard paths
-use std::error;
-use std::fmt;
+// External paths
+use thiserror::Error;
 
 // Crate paths
 use crate::api::currency::error::CurrencyError;
 use crate::api::engine::error::EngineError;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum TransactionsProcessorError {
-    CannotReadInputFile(String, csv::Error),
-    CannotReadInputFileHeaders(String, csv::Error),
-    CannotReadInputFileRecord(String, csv::Error),
-    CannotDeserializeRecord(String, csv::Error),
-    CannotBuildCurrencyValue(CurrencyError),
+    #[error("cannot read input file: {file:?}, reason: {source:?}")]
+    CannotReadInputFile { file: String, source: csv::Error },
+    #[error("cannot read required csv header in input file: {file:?}, reason: {source:?}")]
+    CannotReadInputFileHeaders { file: String, source: csv::Error },
+    #[error("cannot read csv record in input file: {file:?}, reason: {source:?}")]
+    CannotReadInputFileRecord { file: String, source: csv::Error },
+    #[error("cannot deserialize csv record in input file: {file:?}, reason: {source:?}")]
+    CannotDeserializeRecord { file: String, source: csv::Error },
+    #[error("input file misses mandatory amount value")]
     MissedMandatoryAmountInInputRecord,
-    CannotParseMandatoryInputAmountInInputRecord(String, CurrencyError),
-    NestedEngineError(EngineError),
-}
-
-// Add empty Error trait
-impl error::Error for TransactionsProcessorError {}
-
-fn desc(amount_error: &TransactionsProcessorError) -> String {
-    use self::TransactionsProcessorError::*;
-    match *amount_error {
-        CannotReadInputFile(ref file, ref err) => {
-            format!("cannot read input file: {}, reason: {}", file, err)
-        }
-        CannotReadInputFileHeaders(ref file, ref err) => format!(
-            "cannot read required csv header in input file: {}, reason: {}",
-            file, err
-        ),
-        CannotReadInputFileRecord(ref file, ref err) => format!(
-            "cannot read csv record in input file: {}, reason: {}",
-            file, err
-        ),
-        CannotDeserializeRecord(ref file, ref err) => format!(
-            "cannot deserialize csv record in input file: {}, reason: {}",
-            file, err
-        ),
-        CannotBuildCurrencyValue(ref err) => {
-            format!("cannot build currency value, reason: {}", err)
-        }
-        MissedMandatoryAmountInInputRecord => {
-            "input file misses mandatory amount value".to_string()
-        }
-        CannotParseMandatoryInputAmountInInputRecord(ref amount, ref err) => {
-            format!("cannot parse input amount: {}, reason: {}", amount, err)
-        }
-        NestedEngineError(ref err) => format!("enginge gives error: {}", err),
-    }
-}
-
-// Implement Display trait
-impl fmt::Display for TransactionsProcessorError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", desc(&self))
-    }
+    #[error("cannot parse input amount: {amount:?}, reason: {source:?}")]
+    CannotParseMandatoryInputAmountInInputRecord {
+        amount: String,
+        source: CurrencyError,
+    },
+    #[error("engine gives error: {source:?}")]
+    NestedEngineError { source: EngineError },
 }
 
 impl From<EngineError> for TransactionsProcessorError {
-    fn from(err: EngineError) -> TransactionsProcessorError {
-        TransactionsProcessorError::NestedEngineError(err)
+    fn from(source: EngineError) -> TransactionsProcessorError {
+        TransactionsProcessorError::NestedEngineError { source: source }
     }
 }
