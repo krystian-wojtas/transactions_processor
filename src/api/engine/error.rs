@@ -14,6 +14,7 @@ pub enum EngineError {
     CannotWithdrawal(u16, u32, Currency, CurrencyError),
     AccountDoesNotExist(u16),
     DepositTransactionNotUnique(u32),
+    DepositTryAgain(u32),
     WithdrawalTransactionNotUnique(u32),
     DisputeAlreadyDisputed(u32),
     DisputeCannotFindTransaction(u32),
@@ -50,6 +51,12 @@ fn desc(amount_error: &EngineError) -> String {
         DepositTransactionNotUnique(tx) => {
             format!(
                 "deposit transaction should be uniqe but already exist: {}",
+                tx
+            )
+        }
+        DepositTryAgain(tx) => {
+            format!(
+                "deposit transaction failed due to high concurency, try again: {}",
                 tx
             )
         }

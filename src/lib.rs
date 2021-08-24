@@ -132,23 +132,31 @@ fn print_accounts(engine: &Engine) {
     // Print csv header
     println!("client, available, held, total, locked");
 
-    for (client, mutex) in engine.iter() {
-        let account = mutex.lock().unwrap();
+    let accounts = engine.accounts();
 
-        // Calculate total
-        let mut total = account.available.clone();
-        // What is better?
-        // To refuse operations which exceed total? (Then implement total field in Account)
-        // Or to print inacurate total value and warning during structure dump?
-        total.add(account.held).unwrap_or_else(|err| {
-            eprintln!("WARNING: total is out of range: {}", err);
-        });
+    // Limit lock time
+    {
+        // Panic if lock is poisoned
+        let accounts_lock_read = accounts.read().unwrap();
 
-        // Print data
-        println!(
-            "{},{},{},{},{}",
-            client, account.available, account.held, total, account.locked
-        );
+        for (client, mutex) in accounts_lock_read.iter() {
+            let account = mutex.lock().unwrap();
+
+            // Calculate total
+            let mut total = account.available.clone();
+            // What is better?
+            // To refuse operations which exceed total? (Then implement total field in Account)
+            // Or to print inacurate total value and warning during structure dump?
+            total.add(account.held).unwrap_or_else(|err| {
+                eprintln!("WARNING: total is out of range: {}", err);
+            });
+
+            // Print data
+            println!(
+                "{},{},{},{},{}",
+                client, account.available, account.held, total, account.locked
+            );
+        }
     }
 }
 

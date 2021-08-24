@@ -1,7 +1,9 @@
 // Standard paths
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Mutex;
+use std::sync::RwLock;
 
 // Crate paths
 use self::account::Account;
@@ -13,7 +15,7 @@ pub mod account;
 pub mod error;
 
 pub struct Engine {
-    accounts: HashMap<u16, Mutex<Account>>,
+    accounts: RwLock<HashMap<u16, Mutex<Account>>>,
     // Should it track client id also and verify later that disputed transactions are valid?
     transactions: HashMap<u32, Currency>,
     transactions_disputed: HashSet<u32>,
@@ -22,7 +24,7 @@ pub struct Engine {
 impl Engine {
     pub fn new() -> Self {
         Engine {
-            accounts: HashMap::new(),
+            accounts: RwLock::new(HashMap::new()),
             transactions: HashMap::new(),
             transactions_disputed: HashSet::new(),
         }
@@ -38,8 +40,12 @@ impl Engine {
             return Err(EngineError::DepositTransactionNotUnique(tx));
         }
 
-        match self.accounts.get_mut(&client) {
-            Some(mutex) => {
+        // Limit lock time
+        {
+            // Panic if lock is poisoned
+            let accounts_lock_read = self.accounts.read().unwrap();
+
+            if let Some(mutex) = accounts_lock_read.get(&client) {
                 let mut account = mutex
                     .lock()
                     // Panic if mutex is poisoned
@@ -49,16 +55,36 @@ impl Engine {
                     .available
                     .add(amount)
                     .map_err(|err| EngineError::CannotDeposit(client, tx, amount, err))?;
+
+                return Ok(());
             }
-            None => {
-                let mut account = Account::default();
-                account
-                    .available
-                    .add(amount)
-                    .map_err(|err| EngineError::CannotDeposit(client, tx, amount, err))?;
-                self.accounts.insert(client, Mutex::new(account));
-            }
-        };
+        }
+
+        // Limit lock time
+        {
+            // Prepare new account with given deposit
+            let mut account = Account::default();
+            account
+                .available
+                .add(amount)
+                .map_err(|err| EngineError::CannotDeposit(client, tx, amount, err))?;
+
+            // Panic if lock is poisoned
+            let mut accounts_lock_write = self.accounts.write().unwrap();
+
+            match accounts_lock_write.entry(client) {
+                Entry::Occupied(_) => {
+                    // Between getting read of read lock and before getting write lock
+                    // Another thread may be lucky enough to deposit to same account
+                    // Then don't overwrite already existing account
+                    // Instead try deposit again
+                    return Err(EngineError::DepositTryAgain(tx));
+                }
+                Entry::Vacant(entry) => {
+                    entry.insert(Mutex::new(account));
+                }
+            };
+        }
 
         Ok(())
     }
@@ -74,20 +100,26 @@ impl Engine {
             return Err(EngineError::WithdrawalTransactionNotUnique(tx));
         }
 
-        match self.accounts.get_mut(&client) {
-            Some(mutex) => {
-                let mut account = mutex
-                    .lock()
-                    // Panic if mutex is poisoned
-                    .unwrap();
+        // Section with accounts locks
+        {
+            // Panic if lock is poisoned
+            let accounts_lock_read = self.accounts.read().unwrap();
 
-                account
-                    .available
-                    .substract(amount)
-                    .map_err(|err| EngineError::CannotWithdrawal(client, tx, amount, err))
-            }
-            None => Err(EngineError::AccountDoesNotExist(client)),
-        }?;
+            match accounts_lock_read.get(&client) {
+                Some(mutex) => {
+                    let mut account = mutex
+                        .lock()
+                        // Panic if mutex is poisoned
+                        .unwrap();
+
+                    account
+                        .available
+                        .substract(amount)
+                        .map_err(|err| EngineError::CannotWithdrawal(client, tx, amount, err))
+                }
+                None => Err(EngineError::AccountDoesNotExist(client)),
+            }?;
+        }
 
         Ok(())
     }
@@ -101,13 +133,15 @@ impl Engine {
             .get(&tx)
             .ok_or_else(|| EngineError::DisputeCannotFindTransaction(tx))?;
 
-        let mutex = self
-            .accounts
-            .get_mut(&client)
-            .ok_or_else(|| EngineError::DisputeCannotFindAccount(client))?;
-
-        // Limit mutex lock time
+        // Limit lock time
         {
+            // Panic if lock is poisoned
+            let accounts_lock_read = self.accounts.read().unwrap();
+            let mutex = accounts_lock_read
+                .get(&client)
+                .ok_or_else(|| EngineError::DisputeCannotFindAccount(client))?;
+
+            // Panic if lock is poisoned
             let mut account = mutex.lock().unwrap();
 
             account
@@ -135,13 +169,15 @@ impl Engine {
             return Err(EngineError::ResolveTransactionNotDisputed(tx));
         }
 
-        let mutex = self
-            .accounts
-            .get_mut(&client)
-            .ok_or_else(|| EngineError::ResolveCannotFindAccount(client))?;
-
-        // Limit mutex lock time
+        // Limit lock time
         {
+            // Panic if lock is poisoned
+            let accounts_lock_read = self.accounts.read().unwrap();
+            let mutex = accounts_lock_read
+                .get(&client)
+                .ok_or_else(|| EngineError::ResolveCannotFindAccount(client))?;
+
+            // Panic if lock is poisoned
             let mut account = mutex.lock().unwrap();
 
             account
@@ -169,13 +205,14 @@ impl Engine {
             return Err(EngineError::ChargebackTransactionNotDisputed(tx));
         }
 
-        let mutex = self
-            .accounts
-            .get_mut(&client)
-            .ok_or_else(|| EngineError::ChargebackCannotFindAccount(client))?;
-
-        // Limit mutex lock time
+        // Limit lock time
         {
+            // Panic if lock is poisoned
+            let accounts_lock_read = self.accounts.read().unwrap();
+            let mutex = accounts_lock_read
+                .get(&client)
+                .ok_or_else(|| EngineError::ChargebackCannotFindAccount(client))?;
+
             let mut account = mutex.lock().unwrap();
 
             account
@@ -189,8 +226,8 @@ impl Engine {
         Ok(())
     }
 
-    pub fn iter(&self) -> std::collections::hash_map::Iter<u16, Mutex<Account>> {
-        self.accounts.iter()
+    pub fn accounts(&self) -> &RwLock<HashMap<u16, Mutex<Account>>> {
+        &self.accounts
     }
 }
 
