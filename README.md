@@ -141,3 +141,10 @@ Stack backtrace:
   ```
 
 Bactrack feature is only in nightly to stabilize. [issue](https://github.com/rust-lang/rust/issues/53487).
+
+# Licenses
+
+Project is under [GPL3 or later](https://spdx.org/licenses/GPL-3.0-or-later.html).
+
+Used external resources which are not managed by `cargo` build system:
+- [logo](https://www.pngrepo.com/svg/79610/exchange) is [CC0](https://creativecommons.org/publicdomain/zero/1.0/legalcode)
