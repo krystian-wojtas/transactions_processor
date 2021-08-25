@@ -1,9 +1,12 @@
 [package]
 name = "transactions_processor"
+description = "Engine to process transactions and print final state of accounts."
+readme = "README.md"
 version = "0.1.0"
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "GPL-3.0-or-later"
+authors = ["Krystian Wojtas <krystian.wojtas@gmail.com>"]
+repository = "https://gitlab.com/krystian.wojtas/transactions_processor/-/tree/readme"
 
 [dependencies]
 csv = "*"
