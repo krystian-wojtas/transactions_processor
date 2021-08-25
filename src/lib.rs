@@ -9,7 +9,6 @@ use api::transactions::Transaction;
 use api::transactions::Type;
 
 // External paths
-use anyhow::anyhow;
 use anyhow::Result;
 
 // Crate modules
@@ -48,7 +47,7 @@ pub fn process(file: &str) -> anyhow::Result<()> {
                     source: err,
                 };
                 // Finish processing with fatal error
-                return Err(anyhow!(nested_error));
+                return Err(anyhow::Error::new(nested_error));
                 // Or only print warning if error is not considered fatal
                 // and continue processing any following records
                 // print_record_warning(&raw_record, nested_error);
