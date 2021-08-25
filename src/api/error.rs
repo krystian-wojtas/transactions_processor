@@ -24,12 +24,6 @@ pub enum TransactionsProcessorError {
         amount: String,
         source: CurrencyError,
     },
-    #[error("engine gives error: {source:?}")]
-    NestedEngineError { source: EngineError },
-}
-
-impl From<EngineError> for TransactionsProcessorError {
-    fn from(source: EngineError) -> TransactionsProcessorError {
-        TransactionsProcessorError::NestedEngineError { source: source }
-    }
+    #[error("engine gives error")]
+    NestedEngineError(#[from] EngineError),
 }
