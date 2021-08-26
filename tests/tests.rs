@@ -1,4 +1,4 @@
 mod cli {
-    mod engine;
     mod currency;
+    mod engine;
 }
