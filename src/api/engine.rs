@@ -174,9 +174,9 @@ impl Engine {
 
             let amount_ref = transactions_lock_read
                 .get(&tx)
-                .ok_or_else(|| EngineError::CannotFindTransaction(tx))?;
+                .ok_or(EngineError::CannotFindTransaction(tx))?;
 
-            amount = amount_ref.clone();
+            amount = *amount_ref;
         }
 
         Ok(amount)
@@ -201,7 +201,7 @@ impl Engine {
             let accounts_lock_read = self.accounts.read().unwrap();
             let mutex = accounts_lock_read
                 .get(&client)
-                .ok_or_else(|| EngineError::CannotFindAccount(client))?;
+                .ok_or(EngineError::CannotFindAccount(client))?;
 
             // Panic if lock is poisoned
             let mut account = mutex.lock().unwrap();
@@ -260,7 +260,7 @@ impl Engine {
             let accounts_lock_read = self.accounts.read().unwrap();
             let mutex = accounts_lock_read
                 .get(&client)
-                .ok_or_else(|| EngineError::CannotFindAccount(client))?;
+                .ok_or(EngineError::CannotFindAccount(client))?;
 
             // Panic if lock is poisoned
             let mut account = mutex.lock().unwrap();
@@ -291,7 +291,7 @@ impl Engine {
             let accounts_lock_read = self.accounts.read().unwrap();
             let mutex = accounts_lock_read
                 .get(&client)
-                .ok_or_else(|| EngineError::CannotFindAccount(client))?;
+                .ok_or(EngineError::CannotFindAccount(client))?;
 
             let mut account = mutex.lock().unwrap();
 
@@ -310,6 +310,12 @@ impl Engine {
 
     pub fn accounts(&self) -> &RwLock<HashMap<u16, Mutex<Account>>> {
         &self.accounts
+    }
+}
+
+impl Default for Engine {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
