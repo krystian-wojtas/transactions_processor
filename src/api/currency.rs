@@ -21,13 +21,13 @@ impl Currency {
             return Err(CurrencyError::FractionalOutOfRange(fractional));
         }
 
-        let value = decimal
-            .checked_mul(BASE)
-            .ok_or_else(|| CurrencyError::DecimalMultipliedByPrecisionOutOfRange(decimal))?;
+        let value = decimal.checked_mul(BASE).ok_or(
+            CurrencyError::DecimalMultipliedByPrecisionOutOfRange(decimal),
+        )?;
 
-        let value = value
-            .checked_add(fractional)
-            .ok_or_else(|| CurrencyError::DecimalAddedFractionalOutOfRange(decimal, fractional))?;
+        let value = value.checked_add(fractional).ok_or(
+            CurrencyError::DecimalAddedFractionalOutOfRange(decimal, fractional),
+        )?;
 
         Ok(Self(value))
     }
@@ -42,7 +42,7 @@ impl Currency {
         self.0 = self
             .0
             .checked_add(other.0)
-            .ok_or_else(|| CurrencyError::AddingOtherOutOfRange)?;
+            .ok_or(CurrencyError::AddingOtherOutOfRange)?;
 
         Ok(())
     }
@@ -51,7 +51,7 @@ impl Currency {
         self.0 = self
             .0
             .checked_sub(other.0)
-            .ok_or_else(|| CurrencyError::SubstractingOtherNegative)?;
+            .ok_or(CurrencyError::SubstractingOtherNegative)?;
 
         Ok(())
     }
@@ -64,9 +64,7 @@ impl TryFrom<&str> for Currency {
         let mut parts = input.split('.');
 
         // Even when input is empty, desimal part is read from iterator as empty
-        let decimal = parts
-            .next()
-            .ok_or_else(|| CurrencyError::CannotGetDecimalPart)?;
+        let decimal = parts.next().ok_or(CurrencyError::CannotGetDecimalPart)?;
         let decimal = decimal
             .parse::<u64>()
             .map_err(|err| CurrencyError::CannotParseDecimalPart { source: err })?;
