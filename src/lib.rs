@@ -77,7 +77,7 @@ fn process_record(
     file: &str,
 ) -> Result<(), TransactionsProcessorError> {
     // Try to deserialize record into assumed structure
-    let transaction: Transaction = raw_record.deserialize(Some(&headers)).map_err(|err| {
+    let transaction: Transaction = raw_record.deserialize(Some(headers)).map_err(|err| {
         TransactionsProcessorError::CannotDeserializeRecord {
             file: file.to_string(),
             source: err,
@@ -92,8 +92,7 @@ fn process_record(
 
 fn get_and_parse_amount(amount: Option<&str>) -> Result<Currency, TransactionsProcessorError> {
     // Ensure required field is provided
-    let amount =
-        amount.ok_or_else(|| TransactionsProcessorError::MissedMandatoryAmountInInputRecord)?;
+    let amount = amount.ok_or(TransactionsProcessorError::MissedMandatoryAmountInInputRecord)?;
     // Parse input string into Currency type
     let amount = Currency::try_from(amount).map_err(|err| {
         TransactionsProcessorError::CannotParseMandatoryInputAmountInInputRecord {
@@ -157,7 +156,7 @@ fn print_accounts(engine: &Engine) {
             let account = mutex.lock().unwrap();
 
             // Calculate total
-            let mut total = account.available.clone();
+            let mut total = account.available;
             // What is better?
             // To refuse operations which exceed total? (Then implement total field in Account)
             // Or to print inacurate total value and warning during structure dump?
