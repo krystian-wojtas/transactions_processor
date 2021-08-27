@@ -26,6 +26,15 @@ pub enum EngineError {
         amount: Currency,
         source: CurrencyError,
     },
+    #[error("cannot deposit because of exceeded max limit for total: client: {client:?}, transaction: {tx:?}, amount: {amount:?}, available: {available:?}, held {held:?}, reason: {source:?}")]
+    CannotDepositTotalExceededMaxLimit {
+        client: u16,
+        tx: u32,
+        amount: Currency,
+        available: Currency,
+        held: Currency,
+        source: CurrencyError,
+    },
     #[error("deposit transaction failed due to high concurency, try again: {0}")]
     DepositTryAgain(u32),
     #[error("cannot withdrawal: client: {client:?}, transaction: {tx:?}, amount: {amount:?}, reason: {source:?}")]

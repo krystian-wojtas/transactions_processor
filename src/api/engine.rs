@@ -73,8 +73,10 @@ impl Engine {
                     return Err(EngineError::AccountLocked(client));
                 }
 
-                account
-                    .available
+                // Create temporarly value to not update target account if any error
+                let mut available = account.available;
+
+                available
                     .add(amount)
                     .map_err(|source| EngineError::CannotDeposit {
                         client,
@@ -82,6 +84,25 @@ impl Engine {
                         amount,
                         source,
                     })?;
+
+                // Create temporarly total to ensure max value will not be excceded
+                // Do not keep it in Account to save memory space for performance reasons
+                // Recalculate total when needed
+                // Here is ensured that total recalculated in any other place will also not exceed max limit
+                let held = account.held;
+                let mut total = available;
+                total.add(held)
+                    .map_err(|source| EngineError::CannotDepositTotalExceededMaxLimit {
+                        client,
+                        tx,
+                        amount,
+                        available,
+                        held,
+                        source,
+                    })?;
+
+                // Update target account as all fine
+                account.available = available;
 
                 return Ok(());
             }
@@ -440,6 +461,18 @@ mod tests {
         assert_matches!(
             engine.dispute(1, 1),
             Err(EngineError::DisputeAlreadyDisputed(..))
+        );
+    }
+
+    #[test]
+    fn incorrect_deposit_which_exceed_total_limit() {
+        let mut engine = Engine::new();
+        let amount = Currency::max();
+        assert!(engine.deposit(1, 1, amount).is_ok());
+        assert!(engine.dispute(1, 1).is_ok());
+        assert_matches!(
+            engine.deposit(1, 2, amount),
+            Err(EngineError::CannotDepositTotalExceededMaxLimit{..})
         );
     }
 
